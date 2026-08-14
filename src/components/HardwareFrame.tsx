@@ -6,6 +6,7 @@ import {
   VolumeX, 
   Sliders, 
   Maximize2, 
+  Minimize2,
   RotateCw, 
   Terminal, 
   Sparkles, 
@@ -35,6 +36,7 @@ interface HardwareFrameProps {
   onToggleDeviceView: () => void;
   lang: Language;
   onToggleLanguage: () => void;
+  onToggleMiniMode: () => void;
 }
 
 export const HardwareFrame: React.FC<HardwareFrameProps> = ({
@@ -51,7 +53,8 @@ export const HardwareFrame: React.FC<HardwareFrameProps> = ({
   deviceViewMode,
   onToggleDeviceView,
   lang,
-  onToggleLanguage
+  onToggleLanguage,
+  onToggleMiniMode
 }) => {
   const t = TRANSLATIONS[lang] || TRANSLATIONS.ar;
   const isRtl = lang === 'ar';
@@ -88,6 +91,17 @@ export const HardwareFrame: React.FC<HardwareFrameProps> = ({
           >
             <Languages className="w-3.5 h-3.5 text-cyan-400" />
             <span className="font-tajawal">{lang === 'ar' ? 'English' : 'العربية'}</span>
+          </button>
+
+          {/* Minimize Mode Button */}
+          <button
+            id="toggle-mini-mode-top-btn"
+            onClick={onToggleMiniMode}
+            className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#12151f] hover:bg-[#1a1f2e] text-amber-300 border border-amber-500/30 hover:border-amber-400 cursor-pointer text-[11px] font-bold transition-all shadow-sm font-tajawal"
+            title={t.miniMode}
+          >
+            <Minimize2 className="w-3.5 h-3.5 text-amber-400" />
+            <span>{t.miniMode}</span>
           </button>
 
           {/* Test Jackpot Simulator */}
@@ -230,6 +244,16 @@ export const HardwareFrame: React.FC<HardwareFrameProps> = ({
                 title={t.logs}
               >
                 <Terminal className="w-4 h-4" />
+              </button>
+
+              {/* MINIMIZE MODE WIDGET */}
+              <button
+                id="hw-minimize-btn"
+                onClick={onToggleMiniMode}
+                className="p-2 rounded-lg bg-[#141824] hover:bg-[#1d2334] text-slate-300 border border-white/10 hover:border-amber-500/40 active:scale-95 cursor-pointer transition-all shadow-sm"
+                title={t.miniMode}
+              >
+                <Minimize2 className="w-4 h-4 text-amber-400" />
               </button>
 
               {/* SETTINGS DIALOG */}

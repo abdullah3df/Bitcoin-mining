@@ -89,6 +89,11 @@ export interface Translations {
   uptime: string;
   engineVersion: string;
   networkConnected: string;
+  miniMode: string;
+  expandFull: string;
+  miniModeActive: string;
+  stealthMini: string;
+  dockBottom: string;
   screenModes: {
     nerdminer: string;
     clock: string;
@@ -187,6 +192,11 @@ export const TRANSLATIONS: Record<Language, Translations> = {
     uptime: 'وقت التشغيل:',
     engineVersion: 'محرك SHA-256 المسرّع v4.2',
     networkConnected: 'متصل بشبكة بيتكوين',
+    miniMode: 'وضع التصغير (خلفية)',
+    expandFull: 'تكبير الواجهة الكاملة',
+    miniModeActive: 'التعدين يعمل في الخلفية بكامل الأنوية والسرعة',
+    stealthMini: 'المصغر العائم',
+    dockBottom: 'تثبيت مصغر',
     screenModes: {
       nerdminer: 'شاشة نيرد ماينر',
       clock: 'ساعة وشبكة الميمبول',
@@ -283,6 +293,11 @@ export const TRANSLATIONS: Record<Language, Translations> = {
     uptime: 'Uptime:',
     engineVersion: 'SHA-256 Bitwise Core Engine v4.2',
     networkConnected: 'Network Connected',
+    miniMode: 'Mini Mode (Background)',
+    expandFull: 'Expand Full Terminal',
+    miniModeActive: 'Mining running in background with full CPU efficiency',
+    stealthMini: 'Floating Mini Bar',
+    dockBottom: 'Dock Widget',
     screenModes: {
       nerdminer: 'NerdMiner TFT Screen',
       clock: 'Clock & Mempool Matrix',

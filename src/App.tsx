@@ -20,7 +20,8 @@ import { SettingsModal } from './components/SettingsModal';
 import { BlockWinModal } from './components/BlockWinModal';
 import { StratumLogsDrawer } from './components/StratumLogsDrawer';
 import { MiningDashboard } from './components/MiningDashboard';
-import { Languages, BrainCircuit } from 'lucide-react';
+import { MiniMinerWidget } from './components/MiniMinerWidget';
+import { Languages, BrainCircuit, Minimize2 } from 'lucide-react';
 
 const DEFAULT_PAYOUT_ADDRESS = 'bc1qtmeccwnh884hy76u5zr0qlwl63tjsyemw57sks';
 
@@ -96,12 +97,29 @@ export default function App() {
   const [deviceViewMode, setDeviceViewMode] = useState<'enclosure' | 'flat'>('enclosure');
   const [poolConnected, setPoolConnected] = useState<boolean>(false);
   const [poolMessage, setPoolMessage] = useState<string>('Connecting...');
+  const [isMinimized, setIsMinimized] = useState<boolean>(false);
 
   // References for high-frequency counters
   const workerManagerRef = useRef<WorkerManager | null>(null);
   const stratumClientRef = useRef<StratumClient | null>(null);
   const batchHashesCountRef = useRef<number>(0);
   const lastTickTimeRef = useRef<number>(Date.now());
+
+  // Dynamic Browser Tab Title with live hashrate and BTC price
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      if (stats.isMining && stats.hashRate > 0) {
+        const hrStr = stats.hashRate >= 1000000 
+          ? `${(stats.hashRate / 1000000).toFixed(2)} MH/s` 
+          : stats.hashRate >= 1000 
+          ? `${(stats.hashRate / 1000).toFixed(1)} kH/s` 
+          : `${stats.hashRate.toFixed(0)} H/s`;
+        document.title = `⚡ ${hrStr} | ₿ $${Math.round(network.btcPriceUsd).toLocaleString()} | NerdMiner v2`;
+      } else {
+        document.title = 'NerdMiner v2 | Solo Bitcoin Miner';
+      }
+    }
+  }, [stats.hashRate, stats.isMining, network.btcPriceUsd]);
 
   // Add Log Helper
   const addLog = useCallback((log: StratumLog) => {
@@ -461,6 +479,37 @@ export default function App() {
     });
   };
 
+  if (isMinimized) {
+    return (
+      <>
+        <MiniMinerWidget
+          stats={stats}
+          network={network}
+          isMining={stats.isMining}
+          poolConnected={poolConnected}
+          soundEnabled={soundEnabled}
+          lang={lang}
+          onToggleMining={handleToggleMining}
+          onToggleSound={handleToggleSound}
+          onMaximize={() => setIsMinimized(false)}
+        />
+
+        {/* Block Win Celebration Modal still active in mini mode */}
+        {blockWonData && (
+          <BlockWinModal
+            isOpen={blockWonData.open}
+            onClose={() => setBlockWonData(null)}
+            blockHeight={blockWonData.height}
+            hashHex={blockWonData.hash}
+            network={network}
+            config={poolConfig}
+            lang={lang}
+          />
+        )}
+      </>
+    );
+  }
+
   return (
     <main 
       className="min-h-screen cyber-grid-bg text-slate-100 flex flex-col justify-between py-6 px-3 sm:px-6 select-none relative overflow-x-hidden"
@@ -497,8 +546,19 @@ export default function App() {
           </div>
         </div>
 
-        {/* Live Network & BTC Price Ticker Cards */}
-        <div className="flex items-center gap-3 sm:gap-4 font-mono">
+        {/* Live Network & BTC Price Ticker Cards & Header Minimize Action */}
+        <div className="flex items-center gap-2 sm:gap-3 font-mono">
+          {/* Minimize Mode Header Action */}
+          <button
+            id="header-minimize-btn"
+            onClick={() => setIsMinimized(true)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#141824]/90 hover:bg-[#1e2436] text-amber-400 border border-amber-500/30 hover:border-amber-400 text-xs font-bold font-tajawal shadow-sm transition-all cursor-pointer active:scale-95"
+            title={t.miniMode}
+          >
+            <Minimize2 className="w-4 h-4" />
+            <span className="hidden sm:inline">{t.miniMode}</span>
+          </button>
+
           {/* Price Pill */}
           <div className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-[#121520]/80 border border-white/10 shadow-sm text-right" dir={isRtl ? 'rtl' : 'ltr'}>
             <div className="text-[10px] text-slate-400 font-tajawal flex items-center justify-end gap-1">
@@ -542,6 +602,7 @@ export default function App() {
           onToggleDeviceView={() => setDeviceViewMode(prev => prev === 'enclosure' ? 'flat' : 'enclosure')}
           lang={lang}
           onToggleLanguage={handleToggleLanguage}
+          onToggleMiniMode={() => setIsMinimized(true)}
         >
           <NerdMinerScreen
             stats={stats}
