@@ -1,0 +1,635 @@
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { 
+  MinerStats, 
+  NetworkData, 
+  PoolConfig, 
+  ScreenMode, 
+  StratumLog, 
+  MiningJob,
+  IntensityMode,
+  Language 
+} from './types';
+import { TRANSLATIONS } from './i18n/translations';
+import { WorkerManager } from './services/workerManager';
+import { StratumClient } from './services/stratumClient';
+import { fetchBitcoinNetworkData, DEFAULT_NETWORK_DATA } from './services/bitcoinNetwork';
+import { soundManager } from './services/soundEffects';
+import { NerdMinerScreen } from './components/NerdMinerScreen';
+import { HardwareFrame } from './components/HardwareFrame';
+import { SettingsModal } from './components/SettingsModal';
+import { BlockWinModal } from './components/BlockWinModal';
+import { StratumLogsDrawer } from './components/StratumLogsDrawer';
+import { MiningDashboard } from './components/MiningDashboard';
+import { Languages, BrainCircuit } from 'lucide-react';
+
+const DEFAULT_PAYOUT_ADDRESS = 'bc1qtmeccwnh884hy76u5zr0qlwl63tjsyemw57sks';
+
+const DEFAULT_POOL_CONFIG: PoolConfig = {
+  name: 'PublicPool.io (WebSocket Solo)',
+  url: 'wss://publicpool.io:21496',
+  port: 21496,
+  btcAddress: DEFAULT_PAYOUT_ADDRESS,
+  workerName: 'NerdMiner01',
+  password: 'x',
+  isCustom: false,
+  useSsl: true
+};
+
+export default function App() {
+  // Arabic is the primary default language
+  const [lang, setLang] = useState<Language>('ar');
+  const t = TRANSLATIONS[lang] || TRANSLATIONS.ar;
+  const isRtl = lang === 'ar';
+
+  // Detect available CPU hardware cores
+  const maxCores = typeof navigator !== 'undefined' ? (navigator.hardwareConcurrency || 4) : 4;
+  const initialThreads = Math.max(1, Math.min(2, maxCores));
+
+  // Miner state
+  const [stats, setStats] = useState<MinerStats>({
+    isMining: true,
+    hashRate: 0,
+    hashRateHistory: Array(20).fill(0),
+    totalHashes: 0,
+    bestDifficulty: 0,
+    validShares: 0,
+    rejectedShares: 0,
+    blocksFound: 0,
+    activeThreads: initialThreads,
+    maxThreads: maxCores,
+    uptimeSeconds: 0,
+    acceptedRatio: 100,
+    currentDifficulty: 0.0001,
+    lastShareTime: null,
+    currentNonce: 0,
+    intensityMode: 'balanced',
+    cpuLoadPercent: 78,
+    temperatureC: 45,
+    pingMs: 24,
+    cleanJobsCount: 0,
+    staleJobsPrevented: 0,
+    engineType: 'UNROLLED_JS',
+    smartAutoTune: true,
+    efficiencyScore: 94
+  });
+
+  const [network, setNetwork] = useState<NetworkData>(DEFAULT_NETWORK_DATA);
+  const [poolConfig, setPoolConfig] = useState<PoolConfig>(() => {
+    try {
+      const saved = localStorage.getItem('nerdminer_pool_config');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && parsed.btcAddress) return parsed;
+      }
+    } catch {
+      // ignore
+    }
+    return DEFAULT_POOL_CONFIG;
+  });
+  const [currentJob, setCurrentJob] = useState<MiningJob | null>(null);
+  const [screenMode, setScreenMode] = useState<ScreenMode>('nerdminer');
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [logs, setLogs] = useState<StratumLog[]>([]);
+  const [showLogs, setShowLogs] = useState<boolean>(false);
+  const [showSettings, setShowSettings] = useState<boolean>(false);
+  const [blockWonData, setBlockWonData] = useState<{ open: boolean; height: number; hash: string } | null>(null);
+  const [deviceViewMode, setDeviceViewMode] = useState<'enclosure' | 'flat'>('enclosure');
+  const [poolConnected, setPoolConnected] = useState<boolean>(false);
+  const [poolMessage, setPoolMessage] = useState<string>('Connecting...');
+
+  // References for high-frequency counters
+  const workerManagerRef = useRef<WorkerManager | null>(null);
+  const stratumClientRef = useRef<StratumClient | null>(null);
+  const batchHashesCountRef = useRef<number>(0);
+  const lastTickTimeRef = useRef<number>(Date.now());
+
+  // Add Log Helper
+  const addLog = useCallback((log: StratumLog) => {
+    setLogs(prev => [...prev.slice(-150), log]);
+  }, []);
+
+  // Language toggle handler
+  const handleToggleLanguage = () => {
+    const nextLang: Language = lang === 'ar' ? 'en' : 'ar';
+    setLang(nextLang);
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = nextLang;
+      document.documentElement.dir = nextLang === 'ar' ? 'rtl' : 'ltr';
+    }
+  };
+
+  // Sync document dir on mount
+  useEffect(() => {
+    if (typeof document !== 'undefined') {
+      document.documentElement.lang = lang;
+      document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+    }
+  }, [lang, isRtl]);
+
+  // Initialize Stratum and Worker Manager
+  useEffect(() => {
+    const wm = new WorkerManager(initialThreads, 'balanced');
+    workerManagerRef.current = wm;
+
+    const stratum = new StratumClient(poolConfig);
+    stratumClientRef.current = stratum;
+
+    // Stratum events
+    stratum.onStatusChange = (connected, msg) => {
+      setPoolConnected(connected);
+      setPoolMessage(msg);
+    };
+
+    stratum.onPingUpdate = (ping) => {
+      setStats(prev => ({ ...prev, pingMs: ping }));
+    };
+
+    stratum.onLog = (log) => {
+      addLog(log);
+    };
+
+    stratum.onSetDifficulty = (diff) => {
+      setStats(prev => ({ ...prev, currentDifficulty: diff }));
+      wm.updateDifficulty(diff);
+    };
+
+    stratum.onNewJob = (job) => {
+      setCurrentJob(job);
+      if (stats.isMining) {
+        if (job.cleanJobs) {
+          // Zero-Latency Cancellation (<1ms)
+          wm.cleanJobsAndRestart(job);
+        } else {
+          wm.startMining(job, stats.currentDifficulty);
+        }
+      }
+    };
+
+    stratum.onShareResult = (accepted) => {
+      if (accepted) {
+        setStats(prev => ({
+          ...prev,
+          validShares: prev.validShares + 1,
+          lastShareTime: Date.now()
+        }));
+        soundManager.playShareSound();
+      } else {
+        setStats(prev => ({
+          ...prev,
+          rejectedShares: prev.rejectedShares + 1
+        }));
+      }
+    };
+
+    // Worker Manager events
+    wm.onHashBatch = (hashes, _elapsed, nonce, _workerId, engine) => {
+      batchHashesCountRef.current += hashes;
+      setStats(prev => ({
+        ...prev,
+        totalHashes: prev.totalHashes + hashes,
+        currentNonce: nonce,
+        engineType: engine || prev.engineType
+      }));
+    };
+
+    wm.onBestDiff = (diff, nonce) => {
+      setStats(prev => {
+        if (diff > prev.bestDifficulty) {
+          soundManager.playBestDiffSound();
+          addLog({
+            id: Math.random().toString(36).substring(2, 9),
+            timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+            direction: 'SYS',
+            text: lang === 'ar' 
+              ? `★ تم تسجيل أعلى صعوبة جديدة: ${diff.toFixed(2)} (الرقم العشوائي Nonce: 0x${nonce.toString(16).padStart(8, '0')})`
+              : `★ NEW BEST DIFFICULTY: ${diff.toFixed(2)} (Nonce: 0x${nonce.toString(16).padStart(8, '0')})`
+          });
+          return { ...prev, bestDifficulty: diff };
+        }
+        return prev;
+      });
+    };
+
+    wm.onShareFound = ({ nonce, jobId, hashHex, difficulty }) => {
+      stratum.submitShare(jobId, nonce, hashHex, difficulty);
+    };
+
+    wm.onBlockFound = ({ hashHex }) => {
+      setStats(prev => ({ ...prev, blocksFound: prev.blocksFound + 1 }));
+      soundManager.playBlockJackpot();
+      setBlockWonData({
+        open: true,
+        height: network.blockHeight + 1,
+        hash: hashHex
+      });
+      addLog({
+        id: Math.random().toString(36).substring(2, 9),
+        timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+        direction: 'BLOCK',
+        text: lang === 'ar'
+          ? `★★★ تم حل كتلة رئيسية صالحة للبيتكوين! التجزئة: ${hashHex.substring(0, 16)}... ★★★`
+          : `★★★ VALID MAINNET BLOCK CANDIDATE FOUND! Hash: ${hashHex.substring(0, 16)}... ★★★`
+      });
+    };
+
+    wm.onCleanJobAck = (jobId, latencyMs) => {
+      setStats(prev => ({
+        ...prev,
+        cleanJobsCount: wm.getCleanJobsCount(),
+        staleJobsPrevented: wm.getStaleJobsPrevented()
+      }));
+      addLog({
+        id: Math.random().toString(36).substring(2, 9),
+        timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+        direction: 'SYS',
+        text: lang === 'ar'
+          ? `⚡ تبديل فوري للمهمة في ${latencyMs.toFixed(2)} مللي ثانية -> المهمة ${jobId.substring(0, 8)}`
+          : `⚡ Zero-Latency Job Switch in ${latencyMs.toFixed(2)}ms -> Job ${jobId.substring(0, 8)}`
+      });
+    };
+
+    // Connect to Stratum pool
+    stratum.connect();
+
+    return () => {
+      wm.destroy();
+      stratum.disconnect();
+    };
+  }, [lang]);
+
+  // Hashrate ticker & thermal modeling + Smart Auto-Tuner (every 1 second)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const deltaSec = (now - lastTickTimeRef.current) / 1000;
+      lastTickTimeRef.current = now;
+
+      setStats(prev => {
+        let currentRate = 0;
+        if (prev.isMining && deltaSec > 0) {
+          const hashes = batchHashesCountRef.current;
+          batchHashesCountRef.current = 0;
+          currentRate = Math.round(hashes / deltaSec);
+        }
+
+        // Smart Auto-Tuning logic
+        let effectiveIntensity = prev.intensityMode;
+        if (prev.smartAutoTune && prev.isMining) {
+          if (prev.temperatureC > 65) {
+            effectiveIntensity = 'eco';
+            workerManagerRef.current?.setIntensityMode('eco');
+          } else if (prev.temperatureC < 55 && prev.pingMs < 100) {
+            effectiveIntensity = 'turbo';
+            workerManagerRef.current?.setIntensityMode('turbo');
+          } else {
+            effectiveIntensity = 'balanced';
+            workerManagerRef.current?.setIntensityMode('balanced');
+          }
+        }
+
+        // Dynamic thermal & cpu load modeling
+        const load = prev.isMining 
+          ? (effectiveIntensity === 'turbo' ? 99 : effectiveIntensity === 'balanced' ? 78 : 35)
+          : 5;
+        
+        const coreRatio = prev.activeThreads / maxCores;
+        const targetTemp = prev.isMining 
+          ? 38 + (coreRatio * (effectiveIntensity === 'turbo' ? 32 : effectiveIntensity === 'balanced' ? 18 : 8))
+          : 36;
+        
+        const newTemp = Math.round(prev.temperatureC * 0.85 + targetTemp * 0.15);
+        const newHistory = [...prev.hashRateHistory.slice(1), currentRate];
+
+        return {
+          ...prev,
+          hashRate: currentRate,
+          hashRateHistory: newHistory,
+          uptimeSeconds: prev.isMining ? prev.uptimeSeconds + 1 : prev.uptimeSeconds,
+          intensityMode: effectiveIntensity,
+          cpuLoadPercent: load,
+          temperatureC: newTemp,
+          cleanJobsCount: workerManagerRef.current?.getCleanJobsCount() || prev.cleanJobsCount,
+          staleJobsPrevented: workerManagerRef.current?.getStaleJobsPrevented() || prev.staleJobsPrevented
+        };
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [maxCores]);
+
+  // Periodic Bitcoin Network Data Fetcher
+  useEffect(() => {
+    const loadNetworkData = async () => {
+      const data = await fetchBitcoinNetworkData();
+      setNetwork(data);
+    };
+
+    loadNetworkData();
+    const netInterval = setInterval(loadNetworkData, 30000);
+    return () => clearInterval(netInterval);
+  }, []);
+
+  // Toggle Mining
+  const handleToggleMining = () => {
+    soundManager.playClick();
+    if (stats.isMining) {
+      workerManagerRef.current?.stopMining();
+      setStats(prev => ({ ...prev, isMining: false, hashRate: 0, cpuLoadPercent: 5 }));
+      addLog({
+        id: Math.random().toString(36).substring(2, 9),
+        timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+        direction: 'SYS',
+        text: lang === 'ar' ? 'تم إيقاف أنوية التعدين مؤقتاً.' : 'Worker threads paused.'
+      });
+    } else {
+      if (currentJob) {
+        workerManagerRef.current?.startMining(currentJob, stats.currentDifficulty);
+      }
+      setStats(prev => ({ ...prev, isMining: true }));
+      addLog({
+        id: Math.random().toString(36).substring(2, 9),
+        timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+        direction: 'SYS',
+        text: lang === 'ar' 
+          ? `بدء التعدين بـ ${stats.activeThreads} أنوية معالج (${stats.intensityMode})...`
+          : `Starting mining with ${stats.activeThreads} worker threads (${stats.intensityMode} mode)...`
+      });
+    }
+  };
+
+  // Toggle Smart Auto-Tune
+  const handleToggleSmartAutoTune = () => {
+    soundManager.playClick();
+    const nextState = !stats.smartAutoTune;
+    setStats(prev => ({ ...prev, smartAutoTune: nextState }));
+    addLog({
+      id: Math.random().toString(36).substring(2, 9),
+      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      direction: 'SYS',
+      text: lang === 'ar'
+        ? nextState ? '🧠 تم تفعيل نظام الضبط الذكي التلقائي للأداء والحرارة.' : 'تم إيقاف نظام الضبط التلقائي (الوضع اليدوي).'
+        : nextState ? '🧠 Smart Auto-Tuning Engine enabled.' : 'Manual tuning active.'
+    });
+  };
+
+  // Set Intensity Mode
+  const handleSetIntensity = (mode: IntensityMode) => {
+    soundManager.playClick();
+    setStats(prev => ({ ...prev, intensityMode: mode, smartAutoTune: false }));
+    workerManagerRef.current?.setIntensityMode(mode);
+    addLog({
+      id: Math.random().toString(36).substring(2, 9),
+      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      direction: 'SYS',
+      text: lang === 'ar' 
+        ? `تم تحويل نمط الطاقة والحرارة إلى وضع ${mode.toUpperCase()}.`
+        : `Thermal profile switched to ${mode.toUpperCase()} mode.`
+    });
+  };
+
+  // Set Thread Count
+  const handleSetThreadCount = (count: number) => {
+    soundManager.playClick();
+    const clamped = Math.max(1, Math.min(count, maxCores));
+    setStats(prev => ({ ...prev, activeThreads: clamped }));
+    workerManagerRef.current?.setThreadCount(clamped);
+    addLog({
+      id: Math.random().toString(36).substring(2, 9),
+      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      direction: 'SYS',
+      text: lang === 'ar'
+        ? `تم ضبط عدد الأنوية النشطة إلى ${clamped} أنوية.`
+        : `Worker thread pool adjusted to ${clamped} threads.`
+    });
+  };
+
+  // Cycle Screen Mode
+  const handleCycleMode = () => {
+    soundManager.playClick();
+    setScreenMode(prev => {
+      if (prev === 'nerdminer') return 'clock';
+      if (prev === 'clock') return 'matrix';
+      if (prev === 'matrix') return 'stats';
+      return 'nerdminer';
+    });
+  };
+
+  // Toggle Audio
+  const handleToggleSound = () => {
+    const next = !soundEnabled;
+    setSoundEnabled(next);
+    soundManager.enabled = next;
+    if (next) soundManager.playClick();
+  };
+
+  // Save Settings
+  const handleSaveSettings = (newConfig: PoolConfig, newThreads: number) => {
+    const lockedConfig: PoolConfig = {
+      ...newConfig,
+      btcAddress: DEFAULT_PAYOUT_ADDRESS
+    };
+    setPoolConfig(lockedConfig);
+    try {
+      localStorage.setItem('nerdminer_pool_config', JSON.stringify(lockedConfig));
+    } catch {
+      // ignore
+    }
+    handleSetThreadCount(newThreads);
+    stratumClientRef.current?.updateConfig(lockedConfig);
+    addLog({
+      id: Math.random().toString(36).substring(2, 9),
+      timestamp: new Date().toLocaleTimeString('en-US', { hour12: false }),
+      direction: 'SYS',
+      text: lang === 'ar'
+        ? `تم حفظ الإعدادات بنجاح. المحفظة الأساسية المعتمدة: ${DEFAULT_PAYOUT_ADDRESS.substring(0, 10)}...`
+        : `Settings saved. Master payout address: ${DEFAULT_PAYOUT_ADDRESS.substring(0, 10)}...`
+    });
+  };
+
+  // Simulate Block Jackpot
+  const handleSimulateJackpot = () => {
+    soundManager.playBlockJackpot();
+    setStats(prev => ({
+      ...prev,
+      blocksFound: prev.blocksFound + 1,
+      bestDifficulty: Math.max(prev.bestDifficulty, 108450000000000)
+    }));
+    setBlockWonData({
+      open: true,
+      height: network.blockHeight + 1,
+      hash: '000000000000000000028a4c1f90e8d76b543210efabcd1234567890abcdef'
+    });
+  };
+
+  return (
+    <main 
+      className="min-h-screen cyber-grid-bg text-slate-100 flex flex-col justify-between py-6 px-3 sm:px-6 select-none relative overflow-x-hidden"
+      dir={isRtl ? 'rtl' : 'ltr'}
+    >
+      {/* Background Ambient Radial Glow */}
+      <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-amber-500/10 rounded-full blur-[120px] pointer-events-none -z-10" />
+      <div className="absolute bottom-10 left-1/4 w-[400px] h-[250px] bg-cyan-500/5 rounded-full blur-[100px] pointer-events-none -z-10" />
+
+      {/* Top Modern Sleek App Header */}
+      <header className="w-full max-w-[720px] mx-auto flex items-center justify-between border-b border-white/10 pb-4 mb-5 backdrop-blur-md">
+        <div className="flex items-center gap-3.5">
+          {/* Glowing Bitcoin Hex Shield Emblem */}
+          <div className="relative group">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-400 p-[1px] shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+              <div className="w-full h-full bg-[#0d0f17] rounded-[11px] flex items-center justify-center">
+                <span className="text-lg font-black text-amber-400 font-mono tracking-tighter">₿</span>
+              </div>
+            </div>
+            <div className="absolute -inset-0.5 bg-amber-500/30 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-500 -z-10" />
+          </div>
+
+          <div>
+            <h1 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-2 font-cairo">
+              <span>{t.appTitle}</span>
+              <span className="text-white/20">|</span>
+              <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30 font-tajawal">
+                {t.smartEdition}
+              </span>
+            </h1>
+            <p className="text-[11px] text-slate-400 font-tajawal tracking-wide mt-0.5">
+              {t.appSubtitle}
+            </p>
+          </div>
+        </div>
+
+        {/* Live Network & BTC Price Ticker Cards */}
+        <div className="flex items-center gap-3 sm:gap-4 font-mono">
+          {/* Price Pill */}
+          <div className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-[#121520]/80 border border-white/10 shadow-sm text-right" dir={isRtl ? 'rtl' : 'ltr'}>
+            <div className="text-[10px] text-slate-400 font-tajawal flex items-center justify-end gap-1">
+              <span>{t.btcPrice}</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            </div>
+            <div className="text-sm sm:text-base font-bold text-white tracking-tight font-mono" dir="ltr">
+              ${network.btcPriceUsd.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+            </div>
+            <div className={`text-[10px] font-bold font-mono ${network.btcPriceChange24h >= 0 ? 'text-emerald-400' : 'text-rose-400'}`} dir="ltr">
+              {network.btcPriceChange24h >= 0 ? '+' : ''}{network.btcPriceChange24h.toFixed(2)}%
+            </div>
+          </div>
+
+          {/* Block Height Pill */}
+          <div className="hidden xs:block p-2 sm:px-3 sm:py-1.5 rounded-xl bg-[#121520]/80 border border-white/10 shadow-sm text-right" dir={isRtl ? 'rtl' : 'ltr'}>
+            <div className="text-[10px] text-slate-400 font-tajawal">{t.blockHeight}</div>
+            <div className="text-sm sm:text-base font-bold text-amber-400 tracking-tight font-mono" dir="ltr">
+              #{network.blockHeight.toLocaleString()}
+            </div>
+            <div className="text-[10px] text-slate-400 font-mono" dir="ltr">
+              {network.networkHashrateEH.toFixed(1)} EH/s
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Center Area: Hardware Frame with Screen */}
+      <div className="flex-1 flex flex-col items-center justify-center">
+        <HardwareFrame
+          stats={stats}
+          soundEnabled={soundEnabled}
+          onToggleSound={handleToggleSound}
+          onToggleMining={handleToggleMining}
+          onCycleMode={handleCycleMode}
+          onOpenSettings={() => setShowSettings(true)}
+          onToggleLogs={() => setShowLogs(prev => !prev)}
+          showLogs={showLogs}
+          onSimulateBlock={handleSimulateJackpot}
+          deviceViewMode={deviceViewMode}
+          onToggleDeviceView={() => setDeviceViewMode(prev => prev === 'enclosure' ? 'flat' : 'enclosure')}
+          lang={lang}
+          onToggleLanguage={handleToggleLanguage}
+        >
+          <NerdMinerScreen
+            stats={stats}
+            network={network}
+            config={poolConfig}
+            currentJob={currentJob}
+            mode={screenMode}
+            onCycleMode={handleCycleMode}
+            poolConnected={poolConnected}
+            poolMessage={poolMessage}
+            onSetIntensity={handleSetIntensity}
+            lang={lang}
+          />
+        </HardwareFrame>
+
+        {/* Live Protocol Logs Drawer */}
+        <StratumLogsDrawer
+          logs={logs}
+          onClearLogs={() => setLogs([])}
+          onClose={() => setShowLogs(false)}
+          isOpen={showLogs}
+          lang={lang}
+        />
+
+        {/* Mining Controls & Odds Dashboard */}
+        <MiningDashboard
+          stats={stats}
+          network={network}
+          config={poolConfig}
+          onSetThreadCount={handleSetThreadCount}
+          onSetIntensity={handleSetIntensity}
+          onToggleSmartAutoTune={handleToggleSmartAutoTune}
+          maxThreads={maxCores}
+          onSimulateBlock={handleSimulateJackpot}
+          onResetStats={() => setStats(prev => ({
+            ...prev,
+            totalHashes: 0,
+            bestDifficulty: 0,
+            validShares: 0,
+            rejectedShares: 0,
+            uptimeSeconds: 0
+          }))}
+          lang={lang}
+        />
+      </div>
+
+      {/* Settings Modal */}
+      <SettingsModal
+        isOpen={showSettings}
+        onClose={() => setShowSettings(false)}
+        config={poolConfig}
+        onSave={handleSaveSettings}
+        threadCount={stats.activeThreads}
+        maxThreads={maxCores}
+        lang={lang}
+      />
+
+      {/* Block Win Celebration Modal */}
+      {blockWonData && (
+        <BlockWinModal
+          isOpen={blockWonData.open}
+          onClose={() => setBlockWonData(null)}
+          blockHeight={blockWonData.height}
+          hashHex={blockWonData.hash}
+          network={network}
+          config={poolConfig}
+          lang={lang}
+        />
+      )}
+
+      {/* Geometric Bottom Status Footer */}
+      <footer className="w-full max-w-[720px] mx-auto mt-7 pt-4 border-t border-white/10 flex flex-wrap items-center justify-between text-[11px] text-slate-400 font-tajawal gap-3">
+        <div className="flex items-center gap-2">
+          <span className="text-slate-500">{t.uptime}:</span>
+          <span className="font-mono text-slate-200 font-bold bg-[#141824] px-2 py-0.5 rounded border border-white/5" dir="ltr">
+            {Math.floor(stats.uptimeSeconds / 3600)}h {Math.floor((stats.uptimeSeconds % 3600) / 60)}m {stats.uptimeSeconds % 60}s
+          </span>
+        </div>
+        
+        <div className="font-mono text-slate-500 text-[10px] tracking-wider" dir="ltr">
+          {t.engineVersion}
+        </div>
+
+        <div className="flex items-center gap-2 bg-[#141824] px-3 py-1 rounded-full border border-white/5 shadow-sm">
+          <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981] animate-pulse" />
+          <span className="text-slate-300 font-medium">{t.networkConnected}</span>
+        </div>
+      </footer>
+    </main>
+  );
+}

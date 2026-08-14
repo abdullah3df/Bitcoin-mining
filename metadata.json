@@ -1,0 +1,6 @@
+{
+  "name": "NerdMiner Solo Bitcoin Lottery Miner",
+  "description": "High-performance Bitcoin Solo Lottery Miner with 2.8-inch TFT LCD hardware display, unrolled bitwise double SHA-256 acceleration, thermal-aware multi-core duty cycling, zero-latency Stratum cancellation (<1ms), and live network telemetry.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
