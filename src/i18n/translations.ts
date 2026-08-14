@@ -94,6 +94,11 @@ export interface Translations {
   miniModeActive: string;
   stealthMini: string;
   dockBottom: string;
+  wakeLockActive: string;
+  wakeLockDisabled: string;
+  screenKeepAwake: string;
+  pwaInstallTitle: string;
+  pwaInstallHelp: string;
   screenModes: {
     nerdminer: string;
     clock: string;
@@ -197,6 +202,11 @@ export const TRANSLATIONS: Record<Language, Translations> = {
     miniModeActive: 'التعدين يعمل في الخلفية بكامل الأنوية والسرعة',
     stealthMini: 'المصغر العائم',
     dockBottom: 'تثبيت مصغر',
+    wakeLockActive: 'شاشة الهاتف نشطة دائماً (منع القفل)',
+    wakeLockDisabled: 'السماح بقفل الشاشة التلقائي',
+    screenKeepAwake: 'إبقاء الشاشة مضاءة للتعدين',
+    pwaInstallTitle: 'تثبيت كأيقونة تطبيق على هاتفك',
+    pwaInstallHelp: 'اضغط على خيارات المتصفح واختر "إضافة إلى الشاشة الرئيسية"',
     screenModes: {
       nerdminer: 'شاشة نيرد ماينر',
       clock: 'ساعة وشبكة الميمبول',
@@ -298,6 +308,11 @@ export const TRANSLATIONS: Record<Language, Translations> = {
     miniModeActive: 'Mining running in background with full CPU efficiency',
     stealthMini: 'Floating Mini Bar',
     dockBottom: 'Dock Widget',
+    wakeLockActive: 'Screen Kept Awake (Mining Active)',
+    wakeLockDisabled: 'Normal Screen Sleep Allowed',
+    screenKeepAwake: 'Keep Mobile Screen Awake',
+    pwaInstallTitle: 'Install as Home Screen App Icon',
+    pwaInstallHelp: 'Tap browser options and select "Add to Home screen"',
     screenModes: {
       nerdminer: 'NerdMiner TFT Screen',
       clock: 'Clock & Mempool Matrix',

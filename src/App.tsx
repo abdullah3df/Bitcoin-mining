@@ -21,6 +21,7 @@ import { BlockWinModal } from './components/BlockWinModal';
 import { StratumLogsDrawer } from './components/StratumLogsDrawer';
 import { MiningDashboard } from './components/MiningDashboard';
 import { MiniMinerWidget } from './components/MiniMinerWidget';
+import { MobileFloatingWidget } from './components/MobileFloatingWidget';
 import { Languages, BrainCircuit, Minimize2 } from 'lucide-react';
 
 const DEFAULT_PAYOUT_ADDRESS = 'bc1qtmeccwnh884hy76u5zr0qlwl63tjsyemw57sks';

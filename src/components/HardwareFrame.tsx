@@ -62,9 +62,9 @@ export const HardwareFrame: React.FC<HardwareFrameProps> = ({
   return (
     <div className="w-full flex flex-col items-center" dir={isRtl ? 'rtl' : 'ltr'}>
       {/* Top View Mode & Quick Action Bar */}
-      <div className="w-full max-w-[720px] flex items-center justify-between px-3 mb-3.5 text-xs font-mono">
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-[#131722]/80 border border-white/10 shadow-sm backdrop-blur-md">
+      <div className="w-full max-w-[720px] flex flex-wrap items-center justify-between gap-2 px-1 sm:px-3 mb-3.5 text-xs font-mono">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-3">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#131722]/80 border border-white/10 shadow-sm backdrop-blur-md">
             <span className="w-2 h-2 rounded-full bg-[#f59e0b] shadow-[0_0_8px_#f59e0b] animate-pulse" />
             <span className="text-[#f59e0b] font-bold text-[11px] font-tajawal">
               {t.chassisView}
@@ -74,22 +74,22 @@ export const HardwareFrame: React.FC<HardwareFrameProps> = ({
           <button
             id="toggle-enclosure-view-btn"
             onClick={onToggleDeviceView}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#12151f] hover:bg-[#1a1f2e] text-slate-300 border border-white/10 hover:border-amber-500/40 cursor-pointer text-[11px] font-bold transition-all shadow-sm font-tajawal"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#12151f] hover:bg-[#1a1f2e] text-slate-300 border border-white/10 hover:border-amber-500/40 cursor-pointer text-[11px] font-bold transition-all shadow-sm font-tajawal whitespace-nowrap"
           >
-            <Layers className="w-3.5 h-3.5 text-cyan-400" />
+            <Layers className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
             <span>{deviceViewMode === 'enclosure' ? t.fullEnclosure : t.compactDisplay}</span>
           </button>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {/* Language Switcher */}
           <button
             id="toggle-language-btn"
             onClick={onToggleLanguage}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#12151f] hover:bg-[#1a1f2e] text-cyan-300 border border-cyan-500/30 hover:border-cyan-400 cursor-pointer text-[11px] font-bold transition-all shadow-sm"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#12151f] hover:bg-[#1a1f2e] text-cyan-300 border border-cyan-500/30 hover:border-cyan-400 cursor-pointer text-[11px] font-bold transition-all shadow-sm whitespace-nowrap"
             title={lang === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
           >
-            <Languages className="w-3.5 h-3.5 text-cyan-400" />
+            <Languages className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
             <span className="font-tajawal">{lang === 'ar' ? 'English' : 'العربية'}</span>
           </button>
 
@@ -97,10 +97,10 @@ export const HardwareFrame: React.FC<HardwareFrameProps> = ({
           <button
             id="toggle-mini-mode-top-btn"
             onClick={onToggleMiniMode}
-            className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#12151f] hover:bg-[#1a1f2e] text-amber-300 border border-amber-500/30 hover:border-amber-400 cursor-pointer text-[11px] font-bold transition-all shadow-sm font-tajawal"
+            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#12151f] hover:bg-[#1a1f2e] text-amber-300 border border-amber-500/30 hover:border-amber-400 cursor-pointer text-[11px] font-bold transition-all shadow-sm font-tajawal whitespace-nowrap"
             title={t.miniMode}
           >
-            <Minimize2 className="w-3.5 h-3.5 text-amber-400" />
+            <Minimize2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
             <span>{t.miniMode}</span>
           </button>
 
@@ -108,10 +108,10 @@ export const HardwareFrame: React.FC<HardwareFrameProps> = ({
           <button
             id="simulate-block-btn"
             onClick={onSimulateBlock}
-            className="flex items-center gap-1.5 px-3.5 py-1 rounded-md bg-gradient-to-r from-amber-500/20 to-amber-600/10 hover:from-amber-500/30 hover:to-amber-600/20 text-amber-300 border border-amber-500/40 hover:border-amber-400 cursor-pointer text-[11px] font-bold uppercase transition-all active:scale-95 shadow-[0_0_15px_rgba(245,158,11,0.2)] font-tajawal"
+            className="flex items-center gap-1 px-2.5 sm:px-3.5 py-1 rounded-md bg-gradient-to-r from-amber-500/20 to-amber-600/10 hover:from-amber-500/30 hover:to-amber-600/20 text-amber-300 border border-amber-500/40 hover:border-amber-400 cursor-pointer text-[11px] font-bold uppercase transition-all active:scale-95 shadow-[0_0_15px_rgba(245,158,11,0.2)] font-tajawal whitespace-nowrap"
             title={t.testJackpot}
           >
-            <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin" style={{ animationDuration: '8s' }} />
+            <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin shrink-0" style={{ animationDuration: '8s' }} />
             <span className="hidden sm:inline">{t.testJackpot}</span>
             <span className="sm:hidden">{lang === 'ar' ? 'الجائزة' : 'Jackpot'}</span>
           </button>
