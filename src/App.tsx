@@ -40,43 +40,63 @@ const DEFAULT_POOL_CONFIG: PoolConfig = {
 };
 
 export default function App() {
-  // Arabic is the primary default language
-  const [lang, setLang] = useState<Language>('ar');
-  const t = TRANSLATIONS[lang] || TRANSLATIONS.ar;
-  const isRtl = lang === 'ar';
+  // Load saved state from localStorage
+  const getSavedNumber = (key: string, def: number) => {
+    if (typeof window === 'undefined') return def;
+    try { const val = localStorage.getItem(key); return val ? parseInt(val, 10) || def : def; } catch { return def; }
+  };
+  const getSavedFloat = (key: string, def: number) => {
+    if (typeof window === 'undefined') return def;
+    try { const val = localStorage.getItem(key); return val ? parseFloat(val) || def : def; } catch { return def; }
+  };
+  const getSavedString = (key: string, def: string) => {
+    if (typeof window === 'undefined') return def;
+    try { const val = localStorage.getItem(key); return val || def; } catch { return def; }
+  };
+  const getSavedBoolean = (key: string, def: boolean) => {
+    if (typeof window === 'undefined') return def;
+    try { const val = localStorage.getItem(key); return val ? val === 'true' : def; } catch { return def; }
+  };
 
   // Detect available CPU hardware cores
   const maxCores = typeof navigator !== 'undefined' ? (navigator.hardwareConcurrency || 4) : 4;
   // Use up to maxCores minus 1 for UI responsiveness (at least 1, max 32)
   const initialThreads = Math.max(1, Math.min(32, maxCores - 1));
+  const savedThreads = getSavedNumber('nerdminer_threads', initialThreads);
+  const startingThreads = savedThreads > 0 && savedThreads <= maxCores ? savedThreads : initialThreads;
+
+  // Arabic is the primary default language
+  const [lang, setLang] = useState<Language>(() => getSavedString('nerdminer_lang', 'ar') as Language);
+  const t = TRANSLATIONS[lang] || TRANSLATIONS.ar;
+  const isRtl = lang === 'ar';
 
   // Miner state
-  const [stats, setStats] = useState<MinerStats>({
+  const [stats, setStats] = useState<MinerStats>(() => ({
     isMining: true,
     hashRate: 0,
     hashRateHistory: Array(20).fill(0),
-    totalHashes: 0,
-    bestDifficulty: 0,
-    validShares: 0,
+    totalHashes: getSavedNumber('nerdminer_totalHashes', 0),
+    bestDifficulty: getSavedFloat('nerdminer_bestDifficulty', 0),
+    validShares: getSavedNumber('nerdminer_validShares', 0),
     rejectedShares: 0,
-    blocksFound: 0,
-    activeThreads: initialThreads,
+    blocksFound: getSavedNumber('nerdminer_blocksFound', 0),
+    activeThreads: startingThreads,
     maxThreads: maxCores,
     uptimeSeconds: 0,
     acceptedRatio: 100,
     currentDifficulty: 0.0001,
     lastShareTime: null,
     currentNonce: 0,
-    intensityMode: 'balanced',
+    intensityMode: getSavedString('nerdminer_intensity', 'balanced') as IntensityMode,
     cpuLoadPercent: 78,
     temperatureC: 45,
-    pingMs: 24,
+    pingMs: 0,
     cleanJobsCount: 0,
     staleJobsPrevented: 0,
     engineType: 'UNROLLED_JS',
     smartAutoTune: true,
     efficiencyScore: 94
-  });
+  }));
 
   const [network, setNetwork] = useState<NetworkData>(DEFAULT_NETWORK_DATA);
   const [poolConfig, setPoolConfig] = useState<PoolConfig>(() => {
@@ -93,12 +113,12 @@ export default function App() {
   });
   const [currentJob, setCurrentJob] = useState<MiningJob | null>(() => createInstantMiningJob(884200));
   const [screenMode, setScreenMode] = useState<ScreenMode>('nerdminer');
-  const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
+  const [soundEnabled, setSoundEnabled] = useState<boolean>(() => getSavedBoolean('nerdminer_sound', true));
   const [logs, setLogs] = useState<StratumLog[]>([]);
   const [showLogs, setShowLogs] = useState<boolean>(false);
   const [showSettings, setShowSettings] = useState<boolean>(false);
   const [blockWonData, setBlockWonData] = useState<{ open: boolean; height: number; hash: string } | null>(null);
-  const [deviceViewMode, setDeviceViewMode] = useState<'enclosure' | 'flat'>('enclosure');
+  const [deviceViewMode, setDeviceViewMode] = useState<'enclosure' | 'flat'>(() => getSavedString('nerdminer_viewmode', 'enclosure') as 'enclosure' | 'flat');
   const [poolConnected, setPoolConnected] = useState<boolean>(false);
   const [poolMessage, setPoolMessage] = useState<string>('Connecting...');
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
@@ -107,7 +127,7 @@ export default function App() {
   const workerManagerRef = useRef<WorkerManager | null>(null);
   const stratumClientRef = useRef<StratumClient | null>(null);
   const batchHashesCountRef = useRef<number>(0);
-  const totalHashesRef = useRef<number>(0);
+  const totalHashesRef = useRef<number>(stats.totalHashes);
   const currentNonceRef = useRef<number>(0);
   const engineTypeRef = useRef<'WASM' | 'UNROLLED_JS'>('UNROLLED_JS');
   const isMiningRef = useRef<boolean>(true);
@@ -153,6 +173,27 @@ export default function App() {
       document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
     }
   }, [lang, isRtl]);
+
+  // Save settings to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nerdminer_lang', lang);
+      localStorage.setItem('nerdminer_sound', soundEnabled.toString());
+      localStorage.setItem('nerdminer_viewmode', deviceViewMode);
+      localStorage.setItem('nerdminer_intensity', stats.intensityMode);
+      localStorage.setItem('nerdminer_threads', stats.activeThreads.toString());
+    }
+  }, [lang, soundEnabled, deviceViewMode, stats.intensityMode, stats.activeThreads]);
+
+  // Save cumulative stats to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('nerdminer_totalHashes', stats.totalHashes.toString());
+      localStorage.setItem('nerdminer_validShares', stats.validShares.toString());
+      localStorage.setItem('nerdminer_bestDifficulty', stats.bestDifficulty.toString());
+      localStorage.setItem('nerdminer_blocksFound', stats.blocksFound.toString());
+    }
+  }, [stats.totalHashes, stats.validShares, stats.bestDifficulty, stats.blocksFound]);
 
   // Initialize Stratum and Worker Manager
   useEffect(() => {
