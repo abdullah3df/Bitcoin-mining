@@ -16,7 +16,11 @@ import {
   Info,
   TrendingUp,
   Award,
-  Dice5
+  Dice5,
+  DollarSign,
+  Calendar,
+  Flame,
+  HelpCircle
 } from 'lucide-react';
 
 interface WinOddsCalculatorProps {
@@ -145,6 +149,47 @@ export const WinOddsCalculator: React.FC<WinOddsCalculatorProps> = ({
 
   // USD reward estimate
   const currentJackpotUsd = 3.125 * network.btcPriceUsd;
+
+  // Expected Daily/Monthly/Yearly Theoretical Earnings (Mathematical Expected Value: EV = Probability * Reward)
+  // Blocks generated globally per day: 86,400 / 600 = 144 blocks
+  // Total BTC mined globally per day: 144 * 3.125 = 450 BTC
+  // Share of global network = effectiveHashrate / (hashesPerBlockExpected / 600)
+  const globalNetworkHashrate = useMemo(() => {
+    return hashesPerBlockExpected / 600; // hashes per second globally
+  }, [hashesPerBlockExpected]);
+
+  const hashrateShare = useMemo(() => {
+    if (globalNetworkHashrate <= 0 || effectiveHashrate <= 0) return 0;
+    return effectiveHashrate / globalNetworkHashrate;
+  }, [effectiveHashrate, globalNetworkHashrate]);
+
+  const dailyBtcExpected = useMemo(() => {
+    return hashrateShare * 450; // 450 BTC/day
+  }, [hashrateShare]);
+
+  const dailySatoshis = useMemo(() => {
+    return dailyBtcExpected * 100000000;
+  }, [dailyBtcExpected]);
+
+  const dailyUsdExpected = useMemo(() => {
+    return dailyBtcExpected * network.btcPriceUsd;
+  }, [dailyBtcExpected, network.btcPriceUsd]);
+
+  const monthlyBtcExpected = useMemo(() => {
+    return dailyBtcExpected * 30.4375; // avg days in month
+  }, [dailyBtcExpected]);
+
+  const monthlyUsdExpected = useMemo(() => {
+    return monthlyBtcExpected * network.btcPriceUsd;
+  }, [monthlyBtcExpected, network.btcPriceUsd]);
+
+  const yearlyBtcExpected = useMemo(() => {
+    return dailyBtcExpected * 365.25;
+  }, [dailyBtcExpected]);
+
+  const yearlyUsdExpected = useMemo(() => {
+    return yearlyBtcExpected * network.btcPriceUsd;
+  }, [yearlyBtcExpected, network.btcPriceUsd]);
 
   return (
     <div 
@@ -360,6 +405,127 @@ export const WinOddsCalculator: React.FC<WinOddsCalculatorProps> = ({
                 : 'Every single hash computed is an independent valid lottery ticket!'}
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* NEW: Estimated Daily / Monthly / Yearly Earnings Panel */}
+      <div className="bg-gradient-to-br from-[#121727] to-[#0d101a] border border-cyan-500/20 rounded-2xl p-4 sm:p-5 shadow-lg space-y-4">
+        {/* Earnings Header */}
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-cyan-400">
+              <DollarSign className="w-4 h-4" />
+            </div>
+            <div>
+              <h4 className="text-xs sm:text-sm font-bold text-white font-cairo flex items-center gap-2">
+                <span>{t.earningsTitle}</span>
+                <span className="text-[10px] text-cyan-400 bg-cyan-500/10 border border-cyan-500/30 px-2 py-0.5 rounded-md font-mono" dir="ltr">
+                  1 BTC = ${network.btcPriceUsd.toLocaleString()}
+                </span>
+              </h4>
+              <p className="text-[11px] text-slate-400 font-tajawal mt-0.5">
+                {t.earningsSubtitle}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-[#141824] border border-white/10 text-slate-300 text-xs font-mono">
+            <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="text-[11px] text-slate-400 font-tajawal">{lang === 'ar' ? 'السرعة المحسوبة:' : 'Rate:'}</span>
+            <span className="font-bold text-amber-400" dir="ltr">{formatHashRate(effectiveHashrate)}</span>
+          </div>
+        </div>
+
+        {/* 3-Column Earnings Breakdown (Daily, Monthly, Yearly) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {/* Daily Card */}
+          <div className="bg-[#161c2e]/90 border border-white/10 hover:border-cyan-500/40 rounded-xl p-3.5 flex flex-col justify-between transition-all">
+            <div className="flex items-center justify-between text-xs text-slate-400 font-tajawal mb-2">
+              <span className="flex items-center gap-1.5 text-cyan-400 font-bold">
+                <Clock className="w-3.5 h-3.5" />
+                {t.earningsDaily}
+              </span>
+              <span className="text-[10px] bg-cyan-500/10 text-cyan-300 px-1.5 py-0.5 rounded font-mono">
+                24h
+              </span>
+            </div>
+            <div className="space-y-1">
+              <div className="text-base sm:text-lg font-bold font-mono text-emerald-400" dir="ltr">
+                ${dailyUsdExpected < 0.0001 ? dailyUsdExpected.toExponential(2) : dailyUsdExpected.toFixed(6)}
+              </div>
+              <div className="text-[11px] font-mono text-slate-300 flex items-center justify-between" dir="ltr">
+                <span className="text-slate-500">BTC:</span>
+                <span>{dailyBtcExpected.toExponential(3)}</span>
+              </div>
+              <div className="text-[10px] font-mono text-amber-400/90 flex items-center justify-between" dir="ltr">
+                <span className="text-slate-500">Sats:</span>
+                <span>{dailySatoshis < 0.001 ? dailySatoshis.toExponential(2) : dailySatoshis.toFixed(4)} sat</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Monthly Card */}
+          <div className="bg-[#161c2e]/90 border border-white/10 hover:border-amber-500/40 rounded-xl p-3.5 flex flex-col justify-between transition-all">
+            <div className="flex items-center justify-between text-xs text-slate-400 font-tajawal mb-2">
+              <span className="flex items-center gap-1.5 text-amber-400 font-bold">
+                <Calendar className="w-3.5 h-3.5" />
+                {t.earningsMonthly}
+              </span>
+              <span className="text-[10px] bg-amber-500/10 text-amber-300 px-1.5 py-0.5 rounded font-mono">
+                30d
+              </span>
+            </div>
+            <div className="space-y-1">
+              <div className="text-base sm:text-lg font-bold font-mono text-amber-400" dir="ltr">
+                ${monthlyUsdExpected < 0.001 ? monthlyUsdExpected.toExponential(2) : monthlyUsdExpected.toFixed(5)}
+              </div>
+              <div className="text-[11px] font-mono text-slate-300 flex items-center justify-between" dir="ltr">
+                <span className="text-slate-500">BTC:</span>
+                <span>{monthlyBtcExpected.toExponential(3)}</span>
+              </div>
+              <div className="text-[10px] font-mono text-amber-400/90 flex items-center justify-between" dir="ltr">
+                <span className="text-slate-500">Sats:</span>
+                <span>{(dailySatoshis * 30.4375).toFixed(3)} sat</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Annual Card */}
+          <div className="bg-[#161c2e]/90 border border-white/10 hover:border-emerald-500/40 rounded-xl p-3.5 flex flex-col justify-between transition-all">
+            <div className="flex items-center justify-between text-xs text-slate-400 font-tajawal mb-2">
+              <span className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                <Flame className="w-3.5 h-3.5" />
+                {t.earningsYearly}
+              </span>
+              <span className="text-[10px] bg-emerald-500/10 text-emerald-300 px-1.5 py-0.5 rounded font-mono">
+                365d
+              </span>
+            </div>
+            <div className="space-y-1">
+              <div className="text-base sm:text-lg font-bold font-mono text-cyan-300" dir="ltr">
+                ${yearlyUsdExpected < 0.01 ? yearlyUsdExpected.toExponential(2) : yearlyUsdExpected.toFixed(4)}
+              </div>
+              <div className="text-[11px] font-mono text-slate-300 flex items-center justify-between" dir="ltr">
+                <span className="text-slate-500">BTC:</span>
+                <span>{yearlyBtcExpected.toExponential(3)}</span>
+              </div>
+              <div className="text-[10px] font-mono text-amber-400/90 flex items-center justify-between" dir="ltr">
+                <span className="text-slate-500">Sats:</span>
+                <span>{(dailySatoshis * 365.25).toFixed(2)} sat</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Solo vs Pooled Concept Educational Footer */}
+        <div className="bg-[#0b0e17] rounded-xl p-3 border border-white/5 space-y-1.5 text-xs">
+          <div className="flex items-center gap-1.5 text-slate-300 font-bold font-tajawal">
+            <HelpCircle className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+            <span>{t.earningsSoloVsPool}</span>
+          </div>
+          <p className="text-[11px] text-slate-400 font-tajawal leading-relaxed">
+            {t.earningsSoloExplain} {t.earningsPoolExplain}
+          </p>
         </div>
       </div>
 

@@ -143,6 +143,16 @@ export interface Translations {
   viewMempool: string;
   minShort: string;
   secShort: string;
+  earningsTitle: string;
+  earningsSubtitle: string;
+  earningsDaily: string;
+  earningsMonthly: string;
+  earningsYearly: string;
+  earningsExpectedValue: string;
+  earningsSoloVsPool: string;
+  earningsSoloExplain: string;
+  earningsPoolExplain: string;
+  earningsEquivalentPool: string;
   screenModes: {
     nerdminer: string;
     clock: string;
@@ -295,6 +305,16 @@ export const TRANSLATIONS: Record<Language, Translations> = {
     viewMempool: 'عرض',
     minShort: 'د',
     secShort: 'ث',
+    earningsTitle: 'توقع وتيرة الأرباح اليومية والشهرية',
+    earningsSubtitle: 'حساب القيمة الإحصائية المتوقعة (Expected Value) وتفصيل عوائد التعدين المنفرد مقارنة بالمجمعات',
+    earningsDaily: 'العائد اليومي المقدر',
+    earningsMonthly: 'العائد الشهري المقدر',
+    earningsYearly: 'العائد السنوي المقدر',
+    earningsExpectedValue: 'القيمة الرياضية المتوقعة (EV)',
+    earningsSoloVsPool: 'الفرق بين التعدين المنفرد والتجميعي',
+    earningsSoloExplain: 'في التعدين المنفرد (Solo Mining): لا توجد عوائد مجزأة يومياً، بل تحصل على الجائزة الكبرى كاملة (3.125 BTC) دفعة واحدة عند إيجاد الكتلة.',
+    earningsPoolExplain: 'القيمة المحسوبة أدناه تمثل الحصة النظرية العادلة للهاش ريت إذا كان يوزع بشكل نسبي دقيق مع كل كتلة.',
+    earningsEquivalentPool: 'المكافئ التجميعي اليومي',
     screenModes: {
       nerdminer: 'شاشة نيرد ماينر',
       clock: 'ساعة وشبكة الميمبول',
@@ -445,6 +465,16 @@ export const TRANSLATIONS: Record<Language, Translations> = {
     viewMempool: 'View',
     minShort: 'm',
     secShort: 's',
+    earningsTitle: 'Estimated Daily & Monthly Earnings',
+    earningsSubtitle: 'Statistical Expected Value (EV) calculation based on live hashrate & current Bitcoin market price',
+    earningsDaily: 'Est. Daily Value',
+    earningsMonthly: 'Est. Monthly Value',
+    earningsYearly: 'Est. Annual Value',
+    earningsExpectedValue: 'Mathematical Expected Value (EV)',
+    earningsSoloVsPool: 'Solo Lottery vs. Pooled Mining Explained',
+    earningsSoloExplain: 'In Solo Mining: Fractional satoshis are not paid out daily. Instead, the full block reward (3.125 BTC) is won instantly when solving a valid block.',
+    earningsPoolExplain: 'The calculated values below represent the mathematical expected value if your computing power were distributed linearly over time.',
+    earningsEquivalentPool: 'Daily Pool Equivalent',
     screenModes: {
       nerdminer: 'NerdMiner TFT Screen',
       clock: 'Clock & Mempool Matrix',

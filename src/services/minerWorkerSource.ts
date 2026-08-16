@@ -60,10 +60,19 @@ block2[13] = 0;
 block2[14] = 0;
 block2[15] = 0x00000280; // 640 bits
 
+// Shared Control Index Map for Lock-Free Cross-Thread Synchronization
+const CTRL_IDX_JOB_EPOCH = 0;      // Monotonically increasing job template version
+const CTRL_IDX_MINING_ACTIVE = 1;   // 1 = Active, 0 = Stopped
+const CTRL_IDX_ABORT_BATCH = 2;     // 1 = Instant hot-loop abort, 0 = Normal
+const CTRL_IDX_INTENSITY = 3;       // 0 = Eco, 1 = Balanced, 2 = Turbo
+const CTRL_IDX_SKIPPED_ROUNDS = 4;  // Lock-free counter of skipped stale batch rounds
+
 // State variables
 let isRunning = false;
 let currentJob = null;
 let currentJobVersion = 0;
+let localJobEpoch = 0;
+let sharedControl = null; // Int32Array view over SharedArrayBuffer
 let currentWorkerId = 0;
 let nonce = 0;
 let nonceStep = 1;
@@ -163,10 +172,11 @@ function calculateDifficulty(hashWords) {
 // ==========================================
 // 3. ZERO-LATENCY JOB PREPARATION & MIDSTATE
 // ==========================================
-function prepareJob(job, workerId, startNonce, step, jobVersion) {
+function prepareJob(job, workerId, startNonce, step, jobVersion, jobEpoch) {
   currentJob = job;
   currentJobVersion = jobVersion || Date.now();
   currentWorkerId = workerId;
+  localJobEpoch = jobEpoch !== undefined ? jobEpoch : (sharedControl ? Atomics.load(sharedControl, CTRL_IDX_JOB_EPOCH) : currentJobVersion);
   nonce = startNonce !== undefined ? startNonce : Math.floor(Math.random() * 0x10000000);
   nonceStep = step || 1;
 
@@ -211,12 +221,13 @@ function prepareJob(job, workerId, startNonce, step, jobVersion) {
 }
 
 // ==========================================
-// 4. THERMAL-AWARE MINING BATCH LOOP
+// 4. THERMAL-AWARE MINING BATCH LOOP (WITH SHARED ATOMIC JOB-SKIPPING)
 // ==========================================
 function mineBatch() {
   if (!isRunning || !currentJob) return;
 
   const capturedVersion = currentJobVersion;
+  const capturedEpoch = localJobEpoch;
   const startMs = performance.now();
 
   // Dynamic Batch Sizing & Duty Cycle Throttling
@@ -235,14 +246,28 @@ function mineBatch() {
   }
 
   let localBestDiff = 0;
+  let executedHashes = 0;
 
   for (let i = 0; i < batchSize; i++) {
-    // Check for zero-latency cancellation
-    if (!isRunning || currentJobVersion !== capturedVersion) {
-      return; // Abort immediately without emitting stale batch
+    // Ultra-Fast Lock-Free Atomic Job Skipping Check every 64 iterations (sub-microsecond)
+    if ((i & 0x3f) === 0) {
+      if (sharedControl) {
+        const globalEpoch = Atomics.load(sharedControl, CTRL_IDX_JOB_EPOCH);
+        const abortFlag = Atomics.load(sharedControl, CTRL_IDX_ABORT_BATCH);
+        const miningActive = Atomics.load(sharedControl, CTRL_IDX_MINING_ACTIVE);
+
+        if (globalEpoch !== capturedEpoch || abortFlag === 1 || miningActive === 0) {
+          // Record instant skipped batch round in shared memory
+          Atomics.add(sharedControl, CTRL_IDX_SKIPPED_ROUNDS, 1);
+          return; // Zero-Latency instantaneous job skipping!
+        }
+      } else if (!isRunning || currentJobVersion !== capturedVersion) {
+        return; // Abort immediately without emitting stale batch
+      }
     }
 
     nonce = (nonce + nonceStep) >>> 0;
+    executedHashes++;
 
     // Put Little Endian nonce in Big Endian word slot
     const n0 = (nonce >>> 24) & 0xff;
@@ -304,7 +329,7 @@ function mineBatch() {
           jobId: currentJob.jobId,
           hashHex: hashHex,
           difficulty: diff,
-          hashes: i + 1
+          hashes: executedHashes
         });
       }
     }
@@ -314,12 +339,13 @@ function mineBatch() {
 
   self.postMessage({
     type: 'HASH_BATCH',
-    hashes: batchSize,
+    hashes: executedHashes || batchSize,
     workerId: currentWorkerId,
     elapsedMs: elapsedMs,
     nonce: nonce,
     engine: activeEngine,
-    dutyCycleMs: restDelayMs
+    dutyCycleMs: restDelayMs,
+    sharedSyncActive: !!sharedControl
   });
 
   // Schedule next duty-cycle iteration
@@ -340,21 +366,26 @@ self.onmessage = function(e) {
   const data = e.data;
   if (!data) return;
 
+  // Initialize SharedArrayBuffer control view if supplied
+  if (data.sharedBuffer && typeof SharedArrayBuffer !== 'undefined' && data.sharedBuffer instanceof SharedArrayBuffer) {
+    sharedControl = new Int32Array(data.sharedBuffer);
+  }
+
   switch (data.type) {
     case 'START_JOB':
       if (timerHandle) clearTimeout(timerHandle);
       isRunning = true;
       if (data.intensity) intensityMode = data.intensity;
-      prepareJob(data.job, data.workerId || 0, data.nonceStart, data.nonceStep, data.jobVersion);
+      prepareJob(data.job, data.workerId || 0, data.nonceStart, data.nonceStep, data.jobVersion, data.jobEpoch);
       mineBatch();
       break;
 
     case 'CLEAN_JOB':
-      // ZERO-LATENCY JOB CANCELLATION (<1ms)
+      // ZERO-LATENCY JOB CANCELLATION & INSTANT JOB-SKIPPING (<1ms)
       if (timerHandle) clearTimeout(timerHandle);
       isRunning = true;
       currentJobVersion = data.jobVersion || Date.now();
-      prepareJob(data.job, data.workerId || 0, data.nonceStart, data.nonceStep, currentJobVersion);
+      prepareJob(data.job, data.workerId || 0, data.nonceStart, data.nonceStep, currentJobVersion, data.jobEpoch);
       mineBatch();
       break;
 

@@ -27,6 +27,8 @@ export interface WorkerMessageToWorker {
   nonceStep?: number;
   intensity?: IntensityMode;
   jobVersion?: number;
+  jobEpoch?: number;
+  sharedBuffer?: SharedArrayBuffer;
 }
 
 export interface WorkerMessageFromWorker {
@@ -42,6 +44,7 @@ export interface WorkerMessageFromWorker {
   message?: string;
   engine?: 'WASM' | 'UNROLLED_JS';
   dutyCycleMs?: number;
+  sharedSyncActive?: boolean;
 }
 
 export interface CoreTelemetry {

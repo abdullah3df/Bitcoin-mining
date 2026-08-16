@@ -109,15 +109,17 @@ export const NerdMinerScreen: React.FC<NerdMinerScreenProps> = ({
   const sparklineData = useMemo(() => {
     const history = stats.hashRateHistory.length > 0 ? stats.hashRateHistory : [stats.hashRate];
     const max = Math.max(10, ...history);
-    const width = 140;
+    const width = 100;
     const height = 24;
     const points = history.map((val, idx) => {
       const x = (idx / Math.max(1, history.length - 1)) * width;
-      const y = height - (val / max) * (height - 4) - 2;
+      const y = height - (val / max) * (height - 6) - 3;
       return `${x.toFixed(1)},${y.toFixed(1)}`;
     }).join(' ');
 
-    return { points, width, height };
+    const areaPoints = `0,${height} ${points} ${width},${height}`;
+
+    return { points, areaPoints, width, height };
   }, [stats.hashRateHistory, stats.hashRate]);
 
   // Thermal badge coloring
@@ -218,48 +220,66 @@ export const NerdMinerScreen: React.FC<NerdMinerScreenProps> = ({
         {/* SCREEN MODE 1: CLASSIC NERDMINER 2.8" TFT DISPLAY */}
         {mode === 'nerdminer' && (
           <div className="space-y-2.5">
-            {/* HERO HASHRATE VELOCITY DISPLAY WITH SVG TREND CHART */}
-            <div className="bg-gradient-to-r from-[#0d1017] via-[#121622] to-[#0d1017] border border-white/10 rounded-xl p-3.5 sm:p-4 flex items-center justify-between shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)]">
-              <div>
-                <div className="text-[11px] text-slate-300 font-tajawal font-bold flex items-center gap-1.5">
-                  <Zap className="w-4 h-4 text-amber-400 fill-amber-400" />
+            {/* HERO HASHRATE VELOCITY DISPLAY WITH ISOLATED SPARKLINE & STATUS */}
+            <div className="bg-gradient-to-r from-[#0d1017] via-[#121622] to-[#0d1017] border border-white/10 rounded-xl p-3 sm:p-4 shadow-[inset_0_1px_1px_rgba(255,255,255,0.1)] space-y-2.5">
+              {/* Card Header: Title & Clean Badges */}
+              <div className="flex items-center justify-between gap-2 border-b border-white/5 pb-2">
+                <div className="flex items-center gap-1.5 text-[11px] text-slate-300 font-tajawal font-bold shrink-0">
+                  <Zap className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
                   <span>{t.hashrateVelocity}</span>
-                  <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.2 rounded border border-emerald-500/40 font-mono font-bold">
+                </div>
+                
+                <div className="flex items-center gap-1.5 shrink-0" dir="ltr">
+                  <span className="text-[9px] bg-emerald-500/15 text-emerald-300 px-1.5 py-0.5 rounded border border-emerald-500/30 font-mono font-bold tracking-wide">
                     {stats.engineType}
                   </span>
-                </div>
-                <div className="text-3xl sm:text-4xl font-black tracking-tight text-white mt-1 flex items-baseline gap-2 font-mono text-glow-amber" dir="ltr">
-                  <span className="text-amber-400">{formatHashRate(stats.hashRate)}</span>
-                </div>
-              </div>
-
-              {/* Real-time Hashrate Sparkline Chart */}
-              <div className="text-right flex flex-col items-end">
-                <div className="w-[120px] sm:w-[150px] h-[30px] flex items-center justify-end" dir="ltr">
-                  <svg width="100%" height="28" className="overflow-visible">
-                    <defs>
-                      <linearGradient id="amberGrad" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.4"/>
-                        <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0"/>
-                      </linearGradient>
-                    </defs>
-                    <polyline
-                      fill="none"
-                      stroke="#f59e0b"
-                      strokeWidth="2.2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      points={sparklineData.points}
-                    />
-                  </svg>
-                </div>
-                <div className="text-[10px] text-slate-400 font-mono mt-1 flex items-center gap-1.5">
-                  <span>{lang === 'ar' ? 'الجهد' : 'Load'}: {stats.cpuLoadPercent}%</span>
-                  <span className="text-white/20">•</span>
-                  <span className="text-amber-400 uppercase font-bold font-tajawal">
+                  <span className="text-[9px] text-amber-300 bg-amber-500/10 px-1.5 py-0.5 rounded border border-amber-500/25 font-tajawal font-bold uppercase">
                     {stats.intensityMode === 'eco' ? (lang === 'ar' ? 'اقتصادي' : 'ECO') :
                      stats.intensityMode === 'turbo' ? (lang === 'ar' ? 'توربو' : 'TURBO') : 
                      (lang === 'ar' ? 'متوازن' : 'BALANCED')}
+                  </span>
+                </div>
+              </div>
+
+              {/* Card Body: Big Hashrate Value + Contained Oscilloscope Sparkline */}
+              <div className="flex items-center justify-between gap-2">
+                <div>
+                  <div className="text-2xl sm:text-3xl font-black tracking-tight text-white font-mono text-glow-amber leading-none" dir="ltr">
+                    <span className="text-amber-400">{formatHashRate(stats.hashRate)}</span>
+                  </div>
+                  <div className="text-[10px] text-slate-400 font-mono mt-1.5 flex items-center gap-1.5">
+                    <span>{lang === 'ar' ? 'الجهد' : 'Load'}: <span className="text-slate-200 font-bold">{stats.cpuLoadPercent}%</span></span>
+                    <span className="text-white/20">•</span>
+                    <span className="text-slate-400 font-mono">{(stats.hashRate / 1000).toFixed(1)}k H/s</span>
+                  </div>
+                </div>
+
+                {/* Self-contained Oscilloscope Mini-Chart */}
+                <div className="shrink-0 flex flex-col items-end">
+                  <div className="w-20 sm:w-28 h-7 bg-[#0a0d14] rounded-lg p-1 border border-white/10 overflow-hidden flex items-center justify-center shadow-inner" dir="ltr">
+                    <svg viewBox="0 0 100 24" className="w-full h-full overflow-hidden" preserveAspectRatio="none">
+                      <defs>
+                        <linearGradient id="nerdSparkGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#f59e0b" stopOpacity="0.4"/>
+                          <stop offset="100%" stopColor="#f59e0b" stopOpacity="0.0"/>
+                        </linearGradient>
+                      </defs>
+                      <polygon
+                        fill="url(#nerdSparkGrad)"
+                        points={sparklineData.areaPoints}
+                      />
+                      <polyline
+                        fill="none"
+                        stroke="#f59e0b"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        points={sparklineData.points}
+                      />
+                    </svg>
+                  </div>
+                  <span className="text-[8px] text-slate-500 font-mono mt-0.5" dir="ltr">
+                    {lang === 'ar' ? 'نبض الهاش الحقيقي' : 'Live Hash Pulse'}
                   </span>
                 </div>
               </div>
