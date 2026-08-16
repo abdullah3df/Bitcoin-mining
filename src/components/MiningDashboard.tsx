@@ -32,7 +32,6 @@ interface MiningDashboardProps {
   onSetIntensity: (mode: IntensityMode) => void;
   onToggleSmartAutoTune: () => void;
   maxThreads: number;
-  onSimulateBlock: () => void;
   onResetStats: () => void;
   lang: Language;
 }
@@ -45,7 +44,6 @@ export const MiningDashboard: React.FC<MiningDashboardProps> = ({
   onSetIntensity,
   onToggleSmartAutoTune,
   maxThreads,
-  onSimulateBlock,
   onResetStats,
   lang
 }) => {
@@ -167,15 +165,18 @@ export const MiningDashboard: React.FC<MiningDashboardProps> = ({
 
           {/* Core Telemetry Indicators */}
           <div className="flex items-center gap-2.5 text-xs font-mono">
-            <div className="flex items-center gap-1.5 bg-[#141824] border border-white/10 px-3 py-1.5 rounded-xl shadow-sm">
+            <div 
+              className="flex items-center gap-1.5 bg-[#141824] border border-white/10 px-3 py-1.5 rounded-xl shadow-sm"
+              title={lang === 'ar' ? 'حرارة تقديرية (محاكاة برمجية)' : 'Estimated Temp (Software Model)'}
+            >
               <Thermometer className={`w-3.5 h-3.5 ${tempColor}`} />
-              <span className="text-slate-400 text-[10px] font-tajawal">{t.coreTemp}</span>
+              <span className="text-slate-400 text-[10px] font-tajawal">Est. {t.coreTemp}</span>
               <span className={`font-bold font-mono ${tempColor}`} dir="ltr">{stats.temperatureC}°C</span>
             </div>
             <div className="flex items-center gap-1.5 bg-[#141824] border border-white/10 px-3 py-1.5 rounded-xl shadow-sm">
               <Radio className={`w-3.5 h-3.5 ${pingColor}`} />
               <span className="text-slate-400 text-[10px] font-tajawal">{t.ping}</span>
-              <span className={`font-bold font-mono ${pingColor}`} dir="ltr">{stats.pingMs}ms</span>
+              <span className={`font-bold font-mono ${pingColor}`} dir="ltr">{stats.pingMs === 0 ? '--' : stats.pingMs}ms</span>
             </div>
           </div>
         </div>

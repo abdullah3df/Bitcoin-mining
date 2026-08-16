@@ -173,10 +173,15 @@ export const NerdMinerScreen: React.FC<NerdMinerScreenProps> = ({
         <div className="hidden sm:flex items-center gap-2.5 text-[10px]">
           <div className="flex items-center gap-1 bg-[#10141f] px-2.5 py-0.5 rounded border border-white/10" dir="ltr">
             <Radio className={`w-3 h-3 ${pingColor}`} />
-            <span className={`font-bold ${pingColor}`}>{stats.pingMs}ms</span>
+            <span className={`font-bold ${pingColor}`}>{stats.pingMs === 0 ? '--' : stats.pingMs}ms</span>
           </div>
-          <div className="flex items-center gap-1 bg-[#10141f] px-2.5 py-0.5 rounded border border-white/10" dir="ltr">
+          <div 
+            className="flex items-center gap-1 bg-[#10141f] px-2.5 py-0.5 rounded border border-white/10" 
+            dir="ltr"
+            title={lang === 'ar' ? 'حرارة تقديرية (محاكاة برمجية)' : 'Estimated Temp (Software Model)'}
+          >
             <Thermometer className={`w-3 h-3 ${tempColor}`} />
+            <span className="text-[9px] text-slate-500 mr-0.5">Est.</span>
             <span className={`font-bold ${tempColor}`}>{stats.temperatureC}°C</span>
           </div>
         </div>
@@ -495,7 +500,7 @@ export const NerdMinerScreen: React.FC<NerdMinerScreenProps> = ({
         <div className="flex items-center gap-2.5">
           <div className="flex items-center gap-1" dir="ltr">
             <span className="text-slate-400 font-tajawal">{t.latency}:</span>
-            <span className={`font-bold ${pingColor}`}>{stats.pingMs}ms</span>
+            <span className={`font-bold ${pingColor}`}>{stats.pingMs === 0 ? '--' : stats.pingMs}ms</span>
           </div>
           <span className="text-white/20">•</span>
           <div className="flex items-center gap-1">

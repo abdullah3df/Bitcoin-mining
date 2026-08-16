@@ -73,6 +73,12 @@ let intensityMode = 'balanced'; // 'eco' | 'balanced' | 'turbo'
 let timerHandle = null;
 let activeEngine = 'UNROLLED_JS';
 
+// Zero-delay loop channel (bypass 4ms setTimeout minimum)
+const zeroDelayChannel = new MessageChannel();
+zeroDelayChannel.port1.onmessage = function() {
+  if (isRunning) mineBatch();
+};
+
 // ==========================================
 // 2. UNROLLED BITWISE SHA-256 TRANSFORMATION
 // ==========================================
@@ -217,14 +223,14 @@ function mineBatch() {
   // Eco: ~25,000 hashes burst + 30ms rest (cool 35% load)
   // Balanced: ~50,000 hashes burst + 10ms rest (78% load)
   // Turbo: ~75,000 hashes burst + 0ms immediate loop (100% full throttle)
-  let batchSize = 45000;
+  let batchSize = 100000;
   let restDelayMs = 10;
 
   if (intensityMode === 'eco') {
-    batchSize = 22000;
+    batchSize = 40000;
     restDelayMs = 30;
   } else if (intensityMode === 'turbo') {
-    batchSize = 75000;
+    batchSize = 500000;
     restDelayMs = 0;
   }
 
@@ -319,8 +325,8 @@ function mineBatch() {
   // Schedule next duty-cycle iteration
   if (isRunning && currentJobVersion === capturedVersion) {
     if (restDelayMs === 0) {
-      // In turbo, use MessageChannel / microtask for instant execution without 4ms clamp
-      timerHandle = setTimeout(mineBatch, 0);
+      // In turbo, use MessageChannel for true 0ms delay (no 4ms clamp)
+      zeroDelayChannel.port2.postMessage(null);
     } else {
       timerHandle = setTimeout(mineBatch, restDelayMs);
     }

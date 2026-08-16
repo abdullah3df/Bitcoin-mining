@@ -21,9 +21,10 @@ import { SettingsModal } from './components/SettingsModal';
 import { BlockWinModal } from './components/BlockWinModal';
 import { StratumLogsDrawer } from './components/StratumLogsDrawer';
 import { MiningDashboard } from './components/MiningDashboard';
+import { WinOddsCalculator } from './components/WinOddsCalculator';
 import { MiniMinerWidget } from './components/MiniMinerWidget';
 import { MobileFloatingWidget } from './components/MobileFloatingWidget';
-import { Languages, BrainCircuit, Minimize2 } from 'lucide-react';
+import { Languages, BrainCircuit, Minimize2, Sliders, Volume2, VolumeX, Terminal, Radio } from 'lucide-react';
 
 const DEFAULT_PAYOUT_ADDRESS = 'bc1qtmeccwnh884hy76u5zr0qlwl63tjsyemw57sks';
 
@@ -46,7 +47,8 @@ export default function App() {
 
   // Detect available CPU hardware cores
   const maxCores = typeof navigator !== 'undefined' ? (navigator.hardwareConcurrency || 4) : 4;
-  const initialThreads = Math.max(1, Math.min(2, maxCores));
+  // Use up to maxCores minus 1 for UI responsiveness (at least 1, max 32)
+  const initialThreads = Math.max(1, Math.min(32, maxCores - 1));
 
   // Miner state
   const [stats, setStats] = useState<MinerStats>({
@@ -534,68 +536,124 @@ export default function App() {
       <div className="absolute top-20 left-1/2 -translate-x-1/2 w-[600px] h-[350px] bg-amber-500/10 rounded-full blur-[120px] pointer-events-none -z-10" />
       <div className="absolute bottom-10 left-1/4 w-[400px] h-[250px] bg-cyan-500/5 rounded-full blur-[100px] pointer-events-none -z-10" />
 
-      {/* Top Modern Sleek App Header */}
-      <header className="w-full max-w-[720px] mx-auto flex items-center justify-between border-b border-white/10 pb-4 mb-5 backdrop-blur-md">
-        <div className="flex items-center gap-3.5">
-          {/* Glowing Bitcoin Hex Shield Emblem */}
-          <div className="relative group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-400 p-[1px] shadow-[0_0_20px_rgba(245,158,11,0.4)]">
-              <div className="w-full h-full bg-[#0d0f17] rounded-[11px] flex items-center justify-center">
-                <span className="text-lg font-black text-amber-400 font-mono tracking-tighter">₿</span>
+      {/* Top Modern Sleek App Header with Responsive Non-Overlapping Layout */}
+      <header className="w-full max-w-[720px] mx-auto space-y-3.5 border-b border-white/10 pb-4 mb-4 backdrop-blur-md">
+        {/* Row 1: Brand & Top Utilities Navigation */}
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          {/* Logo & Title */}
+          <div className="flex items-center gap-3">
+            <div className="relative group shrink-0">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-400 p-[1px] shadow-[0_0_20px_rgba(245,158,11,0.4)]">
+                <div className="w-full h-full bg-[#0d0f17] rounded-[11px] flex items-center justify-center">
+                  <span className="text-lg font-black text-amber-400 font-mono tracking-tighter">₿</span>
+                </div>
               </div>
+              <div className="absolute -inset-0.5 bg-amber-500/30 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-500 -z-10" />
             </div>
-            <div className="absolute -inset-0.5 bg-amber-500/30 rounded-xl blur opacity-75 group-hover:opacity-100 transition duration-500 -z-10" />
+
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-base sm:text-lg font-black tracking-tight text-white font-cairo whitespace-nowrap">
+                  {t.appTitle}
+                </h1>
+                <span className="text-[10px] font-bold text-amber-400 bg-amber-500/15 px-2 py-0.5 rounded-full border border-amber-500/30 font-tajawal whitespace-nowrap">
+                  {t.smartEdition}
+                </span>
+              </div>
+              <p className="text-[11px] text-slate-400 font-tajawal tracking-wide mt-0.5">
+                {t.appSubtitle}
+              </p>
+            </div>
           </div>
 
-          <div>
-            <h1 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-2 font-cairo">
-              <span>{t.appTitle}</span>
-              <span className="text-white/20">|</span>
-              <span className="text-xs font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/30 font-tajawal">
-                {t.smartEdition}
-              </span>
-            </h1>
-            <p className="text-[11px] text-slate-400 font-tajawal tracking-wide mt-0.5">
-              {t.appSubtitle}
-            </p>
+          {/* Quick Action Navigation Bar */}
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {/* Language Switcher */}
+            <button
+              id="header-lang-btn"
+              onClick={handleToggleLanguage}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-[#141824] hover:bg-[#1d2334] text-cyan-300 border border-cyan-500/30 hover:border-cyan-400 text-xs font-bold font-tajawal shadow-sm transition-all cursor-pointer whitespace-nowrap active:scale-95"
+              title={lang === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
+            >
+              <Languages className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span>{lang === 'ar' ? 'English' : 'العربية'}</span>
+            </button>
+
+            {/* Sound Toggle Button */}
+            <button
+              id="header-sound-btn"
+              onClick={handleToggleSound}
+              className={`p-2 rounded-xl border text-xs cursor-pointer transition-all active:scale-95 ${
+                soundEnabled
+                  ? 'bg-[#151a27] text-amber-400 border-amber-500/40 hover:bg-[#1c2233] shadow-[0_0_10px_rgba(245,158,11,0.2)]'
+                  : 'bg-[#121520] text-slate-500 border-white/10 hover:text-slate-300'
+              }`}
+              title={soundEnabled ? t.soundOn : t.soundOff}
+            >
+              {soundEnabled ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />}
+            </button>
+
+            {/* Minimize Mode Header Action */}
+            <button
+              id="header-minimize-btn"
+              onClick={() => setIsMinimized(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#141824] hover:bg-[#1e2436] text-amber-400 border border-amber-500/30 hover:border-amber-400 text-xs font-bold font-tajawal shadow-sm transition-all cursor-pointer active:scale-95 whitespace-nowrap"
+              title={t.miniMode}
+            >
+              <Minimize2 className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden sm:inline">{t.miniMode}</span>
+            </button>
+
+            {/* Settings Dialog Quick Launch */}
+            <button
+              id="header-settings-btn"
+              onClick={() => setShowSettings(true)}
+              className="p-2 rounded-xl bg-[#141824] hover:bg-[#1d2334] text-slate-300 border border-white/10 hover:border-amber-500/40 cursor-pointer transition-all active:scale-95 shadow-sm"
+              title={t.settings}
+            >
+              <Sliders className="w-4 h-4 text-slate-300" />
+            </button>
           </div>
         </div>
 
-        {/* Live Network & BTC Price Ticker Cards & Header Minimize Action */}
-        <div className="flex items-center gap-2 sm:gap-3 font-mono">
-          {/* Minimize Mode Header Action */}
-          <button
-            id="header-minimize-btn"
-            onClick={() => setIsMinimized(true)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-[#141824]/90 hover:bg-[#1e2436] text-amber-400 border border-amber-500/30 hover:border-amber-400 text-xs font-bold font-tajawal shadow-sm transition-all cursor-pointer active:scale-95"
-            title={t.miniMode}
-          >
-            <Minimize2 className="w-4 h-4" />
-            <span className="hidden sm:inline">{t.miniMode}</span>
-          </button>
-
-          {/* Price Pill */}
-          <div className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-[#121520]/80 border border-white/10 shadow-sm text-right" dir={isRtl ? 'rtl' : 'ltr'}>
-            <div className="text-[10px] text-slate-400 font-tajawal flex items-center justify-end gap-1">
-              <span>{t.btcPrice}</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+        {/* Row 2: Live Network & Telemetry Cards */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono">
+          {/* BTC Price Card */}
+          <div className="p-2.5 rounded-xl bg-[#121520]/90 border border-white/10 shadow-sm flex flex-col justify-between" dir="ltr">
+            <div className="flex items-center justify-between text-[10px] text-slate-400 font-tajawal">
+              <span className="flex items-center gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="text-slate-300">{lang === 'ar' ? 'سعر البيتكوين' : 'BTC Price'}</span>
+              </span>
+              <span className={`font-bold font-mono ${network.btcPriceChange24h >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                {network.btcPriceChange24h >= 0 ? '+' : ''}{network.btcPriceChange24h.toFixed(2)}%
+              </span>
             </div>
-            <div className="text-sm sm:text-base font-bold text-white tracking-tight font-mono" dir="ltr">
+            <div className="text-sm sm:text-base font-bold text-white tracking-tight mt-1 font-mono">
               ${network.btcPriceUsd.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
-            </div>
-            <div className={`text-[10px] font-bold font-mono ${network.btcPriceChange24h >= 0 ? 'text-emerald-400' : 'text-rose-400'}`} dir="ltr">
-              {network.btcPriceChange24h >= 0 ? '+' : ''}{network.btcPriceChange24h.toFixed(2)}%
             </div>
           </div>
 
-          {/* Block Height Pill */}
-          <div className="hidden xs:block p-2 sm:px-3 sm:py-1.5 rounded-xl bg-[#121520]/80 border border-white/10 shadow-sm text-right" dir={isRtl ? 'rtl' : 'ltr'}>
-            <div className="text-[10px] text-slate-400 font-tajawal">{t.blockHeight}</div>
-            <div className="text-sm sm:text-base font-bold text-amber-400 tracking-tight font-mono" dir="ltr">
+          {/* Block Height Card */}
+          <div className="p-2.5 rounded-xl bg-[#121520]/90 border border-white/10 shadow-sm flex flex-col justify-between" dir="ltr">
+            <div className="flex items-center justify-between text-[10px] text-slate-400 font-tajawal">
+              <span className="text-slate-300">{lang === 'ar' ? 'رقم الكتلة' : 'Block Height'}</span>
+              <span className="text-cyan-400 font-bold font-mono">{network.networkHashrateEH.toFixed(1)} EH/s</span>
+            </div>
+            <div className="text-sm sm:text-base font-bold text-amber-400 tracking-tight mt-1 font-mono">
               #{network.blockHeight.toLocaleString()}
             </div>
-            <div className="text-[10px] text-slate-400 font-mono" dir="ltr">
-              {network.networkHashrateEH.toFixed(1)} EH/s
+          </div>
+
+          {/* Mining Pool Status Card */}
+          <div className="col-span-2 sm:col-span-1 p-2.5 rounded-xl bg-[#121520]/90 border border-white/10 shadow-sm flex flex-col justify-between" dir="ltr">
+            <div className="flex items-center justify-between text-[10px] text-slate-400 font-tajawal">
+              <span className="text-slate-300">{lang === 'ar' ? 'حوض التعدين' : 'Stratum Pool'}</span>
+              <span className={`font-bold font-mono ${stats.pingMs < 100 ? 'text-emerald-400' : 'text-amber-400'}`}>{stats.pingMs}ms</span>
+            </div>
+            <div className="text-xs font-bold text-slate-200 tracking-tight truncate mt-1 flex items-center gap-1.5 font-mono">
+              <span className={`w-2 h-2 rounded-full shrink-0 ${poolConnected ? 'bg-emerald-400 shadow-[0_0_6px_#10b981]' : 'bg-amber-400 animate-pulse'}`} />
+              <span className="truncate">{poolConfig.name.split(' ')[0]}</span>
             </div>
           </div>
         </div>
@@ -642,7 +700,7 @@ export default function App() {
           lang={lang}
         />
 
-        {/* Mining Controls & Odds Dashboard */}
+        {/* Mining Controls Dashboard */}
         <MiningDashboard
           stats={stats}
           network={network}
@@ -651,7 +709,6 @@ export default function App() {
           onSetIntensity={handleSetIntensity}
           onToggleSmartAutoTune={handleToggleSmartAutoTune}
           maxThreads={maxCores}
-          onSimulateBlock={handleSimulateJackpot}
           onResetStats={() => setStats(prev => ({
             ...prev,
             totalHashes: 0,
@@ -660,6 +717,13 @@ export default function App() {
             rejectedShares: 0,
             uptimeSeconds: 0
           }))}
+          lang={lang}
+        />
+
+        {/* Real-time Solo Win Odds & Expected Time Calculator */}
+        <WinOddsCalculator
+          stats={stats}
+          network={network}
           lang={lang}
         />
       </div>
@@ -673,6 +737,7 @@ export default function App() {
         threadCount={stats.activeThreads}
         maxThreads={maxCores}
         lang={lang}
+        onSimulateBlock={handleSimulateJackpot}
       />
 
       {/* Block Win Celebration Modal */}

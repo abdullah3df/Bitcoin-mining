@@ -25,6 +25,7 @@ interface SettingsModalProps {
   threadCount: number;
   maxThreads: number;
   lang: Language;
+  onSimulateBlock?: () => void;
 }
 
 const MASTER_PRIMARY_WALLET = 'bc1qtmeccwnh884hy76u5zr0qlwl63tjsyemw57sks';
@@ -60,7 +61,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSave,
   threadCount,
   maxThreads,
-  lang
+  lang,
+  onSimulateBlock
 }) => {
   const t = TRANSLATIONS[lang] || TRANSLATIONS.ar;
   const isRtl = lang === 'ar';
@@ -345,22 +347,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Footer */}
-        <div className="flex items-center justify-end gap-2.5 px-5 py-3.5 border-t border-[#222] bg-[#141414]">
-          <button
-            id="cancel-settings-btn"
-            onClick={onClose}
-            className="px-4 py-2 rounded bg-transparent hover:bg-[#222] text-gray-400 hover:text-white text-xs font-bold transition-all cursor-pointer font-sans"
-          >
-            {t.cancel}
-          </button>
-          <button
-            id="save-settings-btn"
-            onClick={handleSave}
-            className="flex items-center gap-1.5 px-5 py-2 rounded bg-[#f59e0b] hover:bg-[#fbbf24] text-black text-xs font-bold uppercase tracking-wider transition-all active:scale-95 shadow-[0_0_15px_rgba(245,158,11,0.3)] cursor-pointer font-sans"
-          >
-            <Save className="w-4 h-4" />
-            <span>{t.saveSettings}</span>
-          </button>
+        <div className="flex items-center justify-between px-5 py-3.5 border-t border-[#222] bg-[#141414]">
+          <div>
+            {onSimulateBlock && (
+              <button
+                type="button"
+                onClick={onSimulateBlock}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-[#222] hover:bg-[#333] text-gray-400 hover:text-amber-400 text-[10px] font-bold transition-all cursor-pointer font-sans"
+              >
+                <AlertCircle className="w-3.5 h-3.5" />
+                <span>{lang === 'ar' ? 'تجربة إشعار الفوز (للمطورين)' : 'Test Win Alert (Dev)'}</span>
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2.5">
+            <button
+              id="cancel-settings-btn"
+              onClick={onClose}
+              className="px-4 py-2 rounded bg-transparent hover:bg-[#222] text-gray-400 hover:text-white text-xs font-bold transition-all cursor-pointer font-sans"
+            >
+              {t.cancel}
+            </button>
+            <button
+              id="save-settings-btn"
+              onClick={handleSave}
+              className="flex items-center gap-1.5 px-5 py-2 rounded bg-[#f59e0b] hover:bg-[#fbbf24] text-black text-xs font-bold uppercase tracking-wider transition-all active:scale-95 shadow-[0_0_15px_rgba(245,158,11,0.3)] cursor-pointer font-sans"
+            >
+              <Save className="w-4 h-4" />
+              <span>{t.saveSettings}</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>

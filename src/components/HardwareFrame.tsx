@@ -61,10 +61,11 @@ export const HardwareFrame: React.FC<HardwareFrameProps> = ({
 
   return (
     <div className="w-full flex flex-col items-center" dir={isRtl ? 'rtl' : 'ltr'}>
-      {/* Top View Mode & Quick Action Bar */}
-      <div className="w-full max-w-[720px] flex flex-wrap items-center justify-between gap-2 px-1 sm:px-3 mb-3.5 text-xs font-mono">
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-3">
-          <div className="flex items-center gap-1.5 px-2 py-1 rounded-md bg-[#131722]/80 border border-white/10 shadow-sm backdrop-blur-md">
+      {/* Top Device View Mode & Hardware Quick Action Bar */}
+      <div className="w-full max-w-[720px] flex items-center justify-between gap-2 px-1 sm:px-2 mb-3 text-xs font-mono">
+        {/* Left: View Mode Toggle */}
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 px-2 py-1 rounded-lg bg-[#131722]/80 border border-white/10 shadow-sm backdrop-blur-md">
             <span className="w-2 h-2 rounded-full bg-[#f59e0b] shadow-[0_0_8px_#f59e0b] animate-pulse" />
             <span className="text-[#f59e0b] font-bold text-[11px] font-tajawal">
               {t.chassisView}
@@ -74,46 +75,28 @@ export const HardwareFrame: React.FC<HardwareFrameProps> = ({
           <button
             id="toggle-enclosure-view-btn"
             onClick={onToggleDeviceView}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#12151f] hover:bg-[#1a1f2e] text-slate-300 border border-white/10 hover:border-amber-500/40 cursor-pointer text-[11px] font-bold transition-all shadow-sm font-tajawal whitespace-nowrap"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#12151f] hover:bg-[#1a1f2e] text-slate-300 border border-white/10 hover:border-amber-500/40 cursor-pointer text-[11px] font-bold transition-all shadow-sm font-tajawal whitespace-nowrap"
           >
             <Layers className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
             <span>{deviceViewMode === 'enclosure' ? t.fullEnclosure : t.compactDisplay}</span>
           </button>
         </div>
 
-        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-          {/* Language Switcher */}
+        {/* Right: Protocol Logs & Simulate Block Jackpot */}
+        <div className="flex items-center gap-2">
+          {/* Stratum Protocol Logs Toggle */}
           <button
-            id="toggle-language-btn"
-            onClick={onToggleLanguage}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#12151f] hover:bg-[#1a1f2e] text-cyan-300 border border-cyan-500/30 hover:border-cyan-400 cursor-pointer text-[11px] font-bold transition-all shadow-sm whitespace-nowrap"
-            title={lang === 'ar' ? 'Switch to English' : 'التبديل إلى العربية'}
+            id="toggle-logs-top-btn"
+            onClick={onToggleLogs}
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-bold font-tajawal cursor-pointer transition-all shadow-sm whitespace-nowrap ${
+              showLogs 
+                ? 'bg-amber-500 text-slate-950 border-amber-400 font-bold shadow-[0_0_12px_rgba(245,158,11,0.35)]' 
+                : 'bg-[#12151f] hover:bg-[#1a1f2e] text-slate-300 border-white/10 hover:text-white'
+            }`}
+            title={t.logs}
           >
-            <Languages className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-            <span className="font-tajawal">{lang === 'ar' ? 'English' : 'العربية'}</span>
-          </button>
-
-          {/* Minimize Mode Button */}
-          <button
-            id="toggle-mini-mode-top-btn"
-            onClick={onToggleMiniMode}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-md bg-[#12151f] hover:bg-[#1a1f2e] text-amber-300 border border-amber-500/30 hover:border-amber-400 cursor-pointer text-[11px] font-bold transition-all shadow-sm font-tajawal whitespace-nowrap"
-            title={t.miniMode}
-          >
-            <Minimize2 className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span>{t.miniMode}</span>
-          </button>
-
-          {/* Test Jackpot Simulator */}
-          <button
-            id="simulate-block-btn"
-            onClick={onSimulateBlock}
-            className="flex items-center gap-1 px-2.5 sm:px-3.5 py-1 rounded-md bg-gradient-to-r from-amber-500/20 to-amber-600/10 hover:from-amber-500/30 hover:to-amber-600/20 text-amber-300 border border-amber-500/40 hover:border-amber-400 cursor-pointer text-[11px] font-bold uppercase transition-all active:scale-95 shadow-[0_0_15px_rgba(245,158,11,0.2)] font-tajawal whitespace-nowrap"
-            title={t.testJackpot}
-          >
-            <Sparkles className="w-3.5 h-3.5 text-amber-400 animate-spin shrink-0" style={{ animationDuration: '8s' }} />
-            <span className="hidden sm:inline">{t.testJackpot}</span>
-            <span className="sm:hidden">{lang === 'ar' ? 'الجائزة' : 'Jackpot'}</span>
+            <Terminal className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="hidden xs:inline">{t.logs}</span>
           </button>
         </div>
       </div>

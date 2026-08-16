@@ -92,10 +92,8 @@ export class StratumClient {
           }
         }
       } catch (e) {
-        // Fallback to simulated connection jitter
-        const jitter = Math.floor(18 + Math.random() * 14);
-        this.pingMs = jitter;
-        this.onPingUpdate?.(jitter);
+        // Keep the last valid ping if fetch fails, or set to an error indicator (like 999)
+        if (this.pingMs === 24) this.pingMs = 0; // Initialize to 0 if it never succeeded
       }
     };
 
