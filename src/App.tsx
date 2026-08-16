@@ -13,6 +13,7 @@ import { TRANSLATIONS } from './i18n/translations';
 import { WorkerManager } from './services/workerManager';
 import { StratumClient } from './services/stratumClient';
 import { fetchBitcoinNetworkData, DEFAULT_NETWORK_DATA } from './services/bitcoinNetwork';
+import { createInstantMiningJob } from './services/bitcoinCrypto';
 import { soundManager } from './services/soundEffects';
 import { NerdMinerScreen } from './components/NerdMinerScreen';
 import { HardwareFrame } from './components/HardwareFrame';
@@ -88,7 +89,7 @@ export default function App() {
     }
     return DEFAULT_POOL_CONFIG;
   });
-  const [currentJob, setCurrentJob] = useState<MiningJob | null>(null);
+  const [currentJob, setCurrentJob] = useState<MiningJob | null>(() => createInstantMiningJob(884200));
   const [screenMode, setScreenMode] = useState<ScreenMode>('nerdminer');
   const [soundEnabled, setSoundEnabled] = useState<boolean>(true);
   const [logs, setLogs] = useState<StratumLog[]>([]);
@@ -100,10 +101,16 @@ export default function App() {
   const [poolMessage, setPoolMessage] = useState<string>('Connecting...');
   const [isMinimized, setIsMinimized] = useState<boolean>(false);
 
-  // References for high-frequency counters
+  // References for high-frequency counters & real-time telemetry
   const workerManagerRef = useRef<WorkerManager | null>(null);
   const stratumClientRef = useRef<StratumClient | null>(null);
   const batchHashesCountRef = useRef<number>(0);
+  const totalHashesRef = useRef<number>(0);
+  const currentNonceRef = useRef<number>(0);
+  const engineTypeRef = useRef<'WASM' | 'UNROLLED_JS'>('UNROLLED_JS');
+  const isMiningRef = useRef<boolean>(true);
+  const currentJobRef = useRef<MiningJob>(createInstantMiningJob(884200));
+  const difficultyRef = useRef<number>(0.0001);
   const lastTickTimeRef = useRef<number>(Date.now());
 
   // Dynamic Browser Tab Title with live hashrate and BTC price
@@ -153,6 +160,9 @@ export default function App() {
     const stratum = new StratumClient(poolConfig);
     stratumClientRef.current = stratum;
 
+    // Immediately start worker manager with instant job so hashing runs at t=0ms!
+    wm.startMining(currentJobRef.current, difficultyRef.current);
+
     // Stratum events
     stratum.onStatusChange = (connected, msg) => {
       setPoolConnected(connected);
@@ -168,18 +178,20 @@ export default function App() {
     };
 
     stratum.onSetDifficulty = (diff) => {
+      difficultyRef.current = diff;
       setStats(prev => ({ ...prev, currentDifficulty: diff }));
       wm.updateDifficulty(diff);
     };
 
     stratum.onNewJob = (job) => {
+      currentJobRef.current = job;
       setCurrentJob(job);
-      if (stats.isMining) {
+      if (isMiningRef.current) {
         if (job.cleanJobs) {
           // Zero-Latency Cancellation (<1ms)
           wm.cleanJobsAndRestart(job);
         } else {
-          wm.startMining(job, stats.currentDifficulty);
+          wm.startMining(job, difficultyRef.current);
         }
       }
     };
@@ -200,15 +212,12 @@ export default function App() {
       }
     };
 
-    // Worker Manager events
+    // Worker Manager events (High-frequency accumulators in Refs to avoid freezing the UI)
     wm.onHashBatch = (hashes, _elapsed, nonce, _workerId, engine) => {
       batchHashesCountRef.current += hashes;
-      setStats(prev => ({
-        ...prev,
-        totalHashes: prev.totalHashes + hashes,
-        currentNonce: nonce,
-        engineType: engine || prev.engineType
-      }));
+      totalHashesRef.current += hashes;
+      currentNonceRef.current = nonce;
+      if (engine) engineTypeRef.current = engine;
     };
 
     wm.onBestDiff = (diff, nonce) => {
@@ -285,7 +294,7 @@ export default function App() {
 
       setStats(prev => {
         let currentRate = 0;
-        if (prev.isMining && deltaSec > 0) {
+        if (isMiningRef.current && deltaSec > 0) {
           const hashes = batchHashesCountRef.current;
           batchHashesCountRef.current = 0;
           currentRate = Math.round(hashes / deltaSec);
@@ -293,7 +302,7 @@ export default function App() {
 
         // Smart Auto-Tuning logic
         let effectiveIntensity = prev.intensityMode;
-        if (prev.smartAutoTune && prev.isMining) {
+        if (prev.smartAutoTune && isMiningRef.current) {
           if (prev.temperatureC > 65) {
             effectiveIntensity = 'eco';
             workerManagerRef.current?.setIntensityMode('eco');
@@ -307,12 +316,12 @@ export default function App() {
         }
 
         // Dynamic thermal & cpu load modeling
-        const load = prev.isMining 
+        const load = isMiningRef.current 
           ? (effectiveIntensity === 'turbo' ? 99 : effectiveIntensity === 'balanced' ? 78 : 35)
           : 5;
         
         const coreRatio = prev.activeThreads / maxCores;
-        const targetTemp = prev.isMining 
+        const targetTemp = isMiningRef.current 
           ? 38 + (coreRatio * (effectiveIntensity === 'turbo' ? 32 : effectiveIntensity === 'balanced' ? 18 : 8))
           : 36;
         
@@ -323,7 +332,10 @@ export default function App() {
           ...prev,
           hashRate: currentRate,
           hashRateHistory: newHistory,
-          uptimeSeconds: prev.isMining ? prev.uptimeSeconds + 1 : prev.uptimeSeconds,
+          totalHashes: totalHashesRef.current,
+          currentNonce: currentNonceRef.current,
+          engineType: engineTypeRef.current,
+          uptimeSeconds: isMiningRef.current ? prev.uptimeSeconds + 1 : prev.uptimeSeconds,
           intensityMode: effectiveIntensity,
           cpuLoadPercent: load,
           temperatureC: newTemp,
@@ -352,7 +364,9 @@ export default function App() {
   const handleToggleMining = () => {
     soundManager.playClick();
     if (stats.isMining) {
+      isMiningRef.current = false;
       workerManagerRef.current?.stopMining();
+      batchHashesCountRef.current = 0;
       setStats(prev => ({ ...prev, isMining: false, hashRate: 0, cpuLoadPercent: 5 }));
       addLog({
         id: Math.random().toString(36).substring(2, 9),
@@ -361,9 +375,9 @@ export default function App() {
         text: lang === 'ar' ? 'تم إيقاف أنوية التعدين مؤقتاً.' : 'Worker threads paused.'
       });
     } else {
-      if (currentJob) {
-        workerManagerRef.current?.startMining(currentJob, stats.currentDifficulty);
-      }
+      isMiningRef.current = true;
+      const job = currentJobRef.current || createInstantMiningJob(884200);
+      workerManagerRef.current?.startMining(job, difficultyRef.current);
       setStats(prev => ({ ...prev, isMining: true }));
       addLog({
         id: Math.random().toString(36).substring(2, 9),
@@ -675,7 +689,7 @@ export default function App() {
       )}
 
       {/* Geometric Bottom Status Footer */}
-      <footer className="w-full max-w-[720px] mx-auto mt-7 pt-4 border-t border-white/10 flex flex-wrap items-center justify-between text-[11px] text-slate-400 font-tajawal gap-3">
+      <footer className="w-full max-w-[720px] mx-auto mt-7 pt-4 border-t border-white/10 flex flex-wrap items-center justify-between text-[11px] text-slate-400 font-tajawal gap-3 mb-10">
         <div className="flex items-center gap-2">
           <span className="text-slate-500">{t.uptime}:</span>
           <span className="font-mono text-slate-200 font-bold bg-[#141824] px-2 py-0.5 rounded border border-white/5" dir="ltr">
@@ -692,6 +706,16 @@ export default function App() {
           <span className="text-slate-300 font-medium">{t.networkConnected}</span>
         </div>
       </footer>
+
+      {/* Floating Bottom Quick Action Mobile Dock Bar */}
+      <MobileFloatingWidget
+        hashRate={stats.hashRate}
+        isMining={stats.isMining}
+        activeThreads={stats.activeThreads}
+        lang={lang}
+        onOpenSettings={() => setShowSettings(true)}
+        onToggleMiniMode={() => setIsMinimized(true)}
+      />
     </main>
   );
 }

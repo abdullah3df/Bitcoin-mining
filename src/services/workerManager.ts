@@ -130,69 +130,76 @@ export class WorkerManager {
 
   private restartWorkers(): void {
     this.terminateWorkers();
-    if (!this.workerBlobUrl || !this.currentJob) return;
+    if (!this.currentJob) return;
+    this.initBlob();
 
+    let createdWorkers = 0;
     for (let i = 0; i < this.threadCount; i++) {
-      const worker = new Worker(this.workerBlobUrl);
-      const workerId = i;
+      try {
+        if (!this.workerBlobUrl) break;
+        const worker = new Worker(this.workerBlobUrl);
+        const workerId = i;
 
-      worker.onmessage = (event: MessageEvent<WorkerMessageFromWorker>) => {
-        const msg = event.data;
-        if (!msg) return;
+        worker.onmessage = (event: MessageEvent<WorkerMessageFromWorker>) => {
+          const msg = event.data;
+          if (!msg) return;
 
-        switch (msg.type) {
-          case 'HASH_BATCH':
-            this.onHashBatch?.(msg.hashes, msg.elapsedMs || 0, msg.nonce || 0, msg.workerId, msg.engine);
-            break;
-          case 'BEST_DIFF':
-            if (msg.difficulty) {
-              this.onBestDiff?.(msg.difficulty, msg.nonce || 0, msg.workerId);
-            }
-            break;
-          case 'SHARE_FOUND':
-            if (msg.difficulty && msg.jobId && msg.hashHex && msg.nonce !== undefined) {
-              // Stale job check: only submit shares for active job
-              if (this.currentJob && msg.jobId === this.currentJob.jobId) {
-                this.onShareFound?.({
+          switch (msg.type) {
+            case 'HASH_BATCH':
+              this.onHashBatch?.(msg.hashes, msg.elapsedMs || 0, msg.nonce || 0, msg.workerId, msg.engine);
+              break;
+            case 'BEST_DIFF':
+              if (msg.difficulty) {
+                this.onBestDiff?.(msg.difficulty, msg.nonce || 0, msg.workerId);
+              }
+              break;
+            case 'SHARE_FOUND':
+              if (msg.difficulty && msg.jobId && msg.hashHex && msg.nonce !== undefined) {
+                if (this.currentJob && msg.jobId === this.currentJob.jobId) {
+                  this.onShareFound?.({
+                    workerId: msg.workerId,
+                    nonce: msg.nonce,
+                    jobId: msg.jobId,
+                    hashHex: msg.hashHex,
+                    difficulty: msg.difficulty
+                  });
+                } else {
+                  this.staleJobsPrevented++;
+                }
+              }
+              break;
+            case 'BLOCK_FOUND':
+              if (msg.difficulty && msg.jobId && msg.hashHex && msg.nonce !== undefined) {
+                this.onBlockFound?.({
                   workerId: msg.workerId,
                   nonce: msg.nonce,
                   jobId: msg.jobId,
                   hashHex: msg.hashHex,
                   difficulty: msg.difficulty
                 });
-              } else {
-                this.staleJobsPrevented++;
               }
-            }
-            break;
-          case 'BLOCK_FOUND':
-            if (msg.difficulty && msg.jobId && msg.hashHex && msg.nonce !== undefined) {
-              this.onBlockFound?.({
-                workerId: msg.workerId,
-                nonce: msg.nonce,
-                jobId: msg.jobId,
-                hashHex: msg.hashHex,
-                difficulty: msg.difficulty
-              });
-            }
-            break;
-        }
-      };
+              break;
+          }
+        };
 
-      // Assign each thread a distinct core-balanced nonce partition range
-      const nonceStart = Math.floor((0xffffffff / this.threadCount) * workerId);
-      worker.postMessage({
-        type: 'START_JOB',
-        job: this.currentJob,
-        workerId: workerId,
-        difficulty: this.difficulty,
-        nonceStart: nonceStart,
-        nonceStep: this.threadCount,
-        intensity: this.intensityMode,
-        jobVersion: this.currentJobVersion
-      });
+        // Assign each thread a distinct core-balanced nonce partition range
+        const nonceStart = Math.floor((0xffffffff / this.threadCount) * workerId);
+        worker.postMessage({
+          type: 'START_JOB',
+          job: this.currentJob,
+          workerId: workerId,
+          difficulty: this.difficulty,
+          nonceStart: nonceStart,
+          nonceStep: this.threadCount,
+          intensity: this.intensityMode,
+          jobVersion: this.currentJobVersion
+        });
 
-      this.workers.push(worker);
+        this.workers.push(worker);
+        createdWorkers++;
+      } catch (err) {
+        console.warn(`Worker ${i} instantiation error:`, err);
+      }
     }
   }
 

@@ -31,6 +31,7 @@ import {
   Sparkles,
   BrainCircuit
 } from 'lucide-react';
+import { ShareParticlesCanvas } from './ShareParticlesCanvas';
 
 interface NerdMinerScreenProps {
   stats: MinerStats;
@@ -140,6 +141,13 @@ export const NerdMinerScreen: React.FC<NerdMinerScreenProps> = ({
           backgroundImage: 'linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.8) 50%)',
           backgroundSize: '100% 3px'
         }}
+      />
+
+      {/* Real-time Valid Share & Block Won Canvas Particle Physics Overlay */}
+      <ShareParticlesCanvas
+        validSharesCount={stats.validShares}
+        bestDifficulty={stats.bestDifficulty}
+        blocksFoundCount={stats.blocksFound}
       />
 
       {/* TOP HEADER BAR */}

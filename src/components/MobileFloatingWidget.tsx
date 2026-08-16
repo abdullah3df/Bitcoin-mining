@@ -37,6 +37,7 @@ export const MobileFloatingWidget: React.FC<MobileFloatingWidgetProps> = ({
   const [showPwaModal, setShowPwaModal] = useState<boolean>(false);
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [wakeLockSentinel, setWakeLockSentinel] = useState<any>(null);
+  const [isDockCollapsed, setIsDockCollapsed] = useState<boolean>(false);
 
   // Check WakeLock support
   useEffect(() => {
@@ -112,63 +113,87 @@ export const MobileFloatingWidget: React.FC<MobileFloatingWidgetProps> = ({
 
   return (
     <>
-      {/* Floating Bottom Quick Action Mobile Dock Bar */}
-      <aside 
-        aria-label="Mobile Quick Dock"
-        className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-[500px] bg-[#0c0f18]/90 backdrop-blur-xl border border-amber-500/40 shadow-[0_10px_35px_rgba(0,0,0,0.8),0_0_20px_rgba(245,158,11,0.15)] rounded-2xl px-3.5 py-2.5 flex items-center justify-between gap-2 select-none font-sans"
-        dir={isRtl ? 'rtl' : 'ltr'}
-      >
-        {/* Live Hashrate Badge */}
-        <div className="flex items-center gap-2 font-mono">
-          <div className="relative flex items-center justify-center">
-            <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b] animate-ping" />
-            <span className="absolute w-2 h-2 rounded-full bg-amber-400" />
+      {/* Floating Bottom Quick Action Mobile Dock Bar or Minimized Pill */}
+      {isDockCollapsed ? (
+        <button
+          id="expand-mobile-dock-btn"
+          onClick={() => setIsDockCollapsed(false)}
+          className="fixed bottom-3 right-4 z-40 flex items-center gap-2 bg-[#0c0f18]/95 hover:bg-[#151926] text-amber-400 border border-amber-500/50 shadow-[0_8px_30px_rgba(0,0,0,0.8),0_0_15px_rgba(245,158,11,0.2)] rounded-full px-3 py-1.5 text-xs font-bold font-tajawal cursor-pointer transition-all active:scale-95 animate-fadeIn"
+          dir={isRtl ? 'rtl' : 'ltr'}
+          title={lang === 'ar' ? 'إظهار شريط الهاتف السريع' : 'Show Mobile Dock'}
+        >
+          <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+          <span className="font-mono text-[11px]" dir="ltr">{hrFormatted}</span>
+          <span className="text-slate-400 text-[10px]">⚡</span>
+        </button>
+      ) : (
+        <aside 
+          aria-label="Mobile Quick Dock"
+          className="fixed bottom-3 left-1/2 -translate-x-1/2 z-40 w-[94%] max-w-[500px] bg-[#0c0f18]/90 backdrop-blur-xl border border-amber-500/40 shadow-[0_10px_35px_rgba(0,0,0,0.8),0_0_20px_rgba(245,158,11,0.15)] rounded-2xl px-3 py-2 flex items-center justify-between gap-2 select-none font-sans animate-fadeIn"
+          dir={isRtl ? 'rtl' : 'ltr'}
+        >
+          {/* Live Hashrate Badge */}
+          <div className="flex items-center gap-2 font-mono">
+            <div className="relative flex items-center justify-center">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-400 shadow-[0_0_8px_#f59e0b] animate-ping" />
+              <span className="absolute w-2 h-2 rounded-full bg-amber-400" />
+            </div>
+            <div className="flex flex-col">
+              <span className="text-[10px] text-slate-400 font-tajawal font-bold leading-none">
+                {lang === 'ar' ? 'التعدين الحي' : 'Live Hash'}
+              </span>
+              <span className="text-xs sm:text-sm font-black text-amber-400 font-mono tracking-tight" dir="ltr">
+                {hrFormatted}
+              </span>
+            </div>
           </div>
-          <div className="flex flex-col">
-            <span className="text-[10px] text-slate-400 font-tajawal font-bold leading-none">
-              {lang === 'ar' ? 'التعدين الحي' : 'Live Hash'}
-            </span>
-            <span className="text-xs sm:text-sm font-black text-amber-400 font-mono tracking-tight" dir="ltr">
-              {hrFormatted}
-            </span>
+
+          {/* Action Buttons: Screen Wake Lock + PWA Floating Icon + Collapse Button */}
+          <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Screen Wake Lock Button */}
+            <button
+              id="mobile-wake-lock-toggle-btn"
+              onClick={toggleWakeLock}
+              className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-[11px] font-bold font-tajawal cursor-pointer transition-all active:scale-95 ${
+                wakeLockActive
+                  ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
+                  : 'bg-[#151926] text-slate-400 border-white/10 hover:text-slate-200'
+              }`}
+              title={wakeLockActive ? t.wakeLockActive : t.wakeLockDisabled}
+            >
+              {wakeLockActive ? (
+                <Sun className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+              ) : (
+                <SunMedium className="w-3.5 h-3.5 text-slate-500" />
+              )}
+              <span className="hidden xs:inline">
+                {wakeLockActive ? (lang === 'ar' ? 'مضاءة' : 'Awake') : (lang === 'ar' ? 'إبقاء الشاشة' : 'Keep Awake')}
+              </span>
+            </button>
+
+            {/* Add to Phone Home Screen (PWA Icon) */}
+            <button
+              id="mobile-pwa-install-btn"
+              onClick={handleInstallPwa}
+              className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-cyan-600/10 hover:from-cyan-500/30 hover:to-cyan-600/20 text-cyan-300 border border-cyan-500/40 text-[11px] font-bold font-tajawal cursor-pointer transition-all active:scale-95 shadow-sm"
+              title={t.pwaInstallTitle}
+            >
+              <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
+              <span>{lang === 'ar' ? 'أيقونة' : 'App Icon'}</span>
+            </button>
+
+            {/* Collapse Dock Button */}
+            <button
+              id="collapse-mobile-dock-btn"
+              onClick={() => setIsDockCollapsed(true)}
+              className="p-1.5 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white cursor-pointer transition-all"
+              title={lang === 'ar' ? 'إخفاء الشريط' : 'Hide dock'}
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-        </div>
-
-        {/* Action Buttons: Screen Wake Lock + PWA Floating Icon + Mini Mode */}
-        <div className="flex items-center gap-1.5 sm:gap-2">
-          {/* Screen Wake Lock Button */}
-          <button
-            id="mobile-wake-lock-toggle-btn"
-            onClick={toggleWakeLock}
-            className={`flex items-center gap-1 px-2.5 py-1.5 rounded-xl border text-[11px] font-bold font-tajawal cursor-pointer transition-all active:scale-95 ${
-              wakeLockActive
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/50 shadow-[0_0_12px_rgba(245,158,11,0.3)]'
-                : 'bg-[#151926] text-slate-400 border-white/10 hover:text-slate-200'
-            }`}
-            title={wakeLockActive ? t.wakeLockActive : t.wakeLockDisabled}
-          >
-            {wakeLockActive ? (
-              <Sun className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-            ) : (
-              <SunMedium className="w-3.5 h-3.5 text-slate-500" />
-            )}
-            <span className="hidden xs:inline">
-              {wakeLockActive ? (lang === 'ar' ? 'الشاشة مضاءة' : 'Awake') : (lang === 'ar' ? 'إبقاء الشاشة' : 'Keep Awake')}
-            </span>
-          </button>
-
-          {/* Add to Phone Home Screen (PWA Icon) */}
-          <button
-            id="mobile-pwa-install-btn"
-            onClick={handleInstallPwa}
-            className="flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500/20 to-cyan-600/10 hover:from-cyan-500/30 hover:to-cyan-600/20 text-cyan-300 border border-cyan-500/40 text-[11px] font-bold font-tajawal cursor-pointer transition-all active:scale-95 shadow-sm"
-            title={t.pwaInstallTitle}
-          >
-            <Smartphone className="w-3.5 h-3.5 text-cyan-400" />
-            <span>{lang === 'ar' ? 'أيقونة بالهاتف' : 'App Icon'}</span>
-          </button>
-        </div>
-      </aside>
+        </aside>
+      )}
 
       {/* PWA Phone Icon Guide Modal */}
       {showPwaModal && (

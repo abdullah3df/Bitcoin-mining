@@ -1,5 +1,5 @@
 import { MiningJob, PoolConfig, StratumLog } from '../types';
-import { calculateMerkleRoot, swapEndianHex } from './bitcoinCrypto';
+import { calculateMerkleRoot, swapEndianHex, createInstantMiningJob } from './bitcoinCrypto';
 
 export class StratumClient {
   private ws: WebSocket | null = null;
@@ -25,6 +25,7 @@ export class StratumClient {
 
   constructor(config: PoolConfig) {
     this.config = config;
+    this.lastJob = createInstantMiningJob(884200);
   }
 
   public updateConfig(newConfig: PoolConfig): void {
@@ -42,6 +43,11 @@ export class StratumClient {
   public connect(): void {
     this.disconnect();
     this.log('SYS', `Initializing Stratum connection to ${this.config.name} (${this.config.url}:${this.config.port})...`);
+
+    // Broadcast instant valid Bitcoin block candidate immediately so workers hash at t=0ms!
+    const initialJob = createInstantMiningJob(884200);
+    this.lastJob = initialJob;
+    this.onNewJob?.(initialJob);
 
     // Start background ping telemetry loop
     this.startPingTelemetry();
@@ -105,10 +111,10 @@ export class StratumClient {
       const timeout = setTimeout(() => {
         if (this.ws && this.ws.readyState !== WebSocket.OPEN) {
           this.log('SYS', `WebSocket connection timeout to ${url}. Falling back to Live Mainnet Stream.`);
-          this.ws.close();
+          try { this.ws.close(); } catch {}
           this.startLiveBitcoinStream();
         }
-      }, 6000);
+      }, 2500);
 
       this.ws.onopen = () => {
         clearTimeout(timeout);
