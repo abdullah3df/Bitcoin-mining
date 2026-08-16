@@ -14,16 +14,26 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&family=Chakra+Petch:ital,wght@0,400;0,600;0,700;1,700&family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&family=Tajawal:wght@400;500;700;900&family=VT323&display=swap" rel="stylesheet">
+    
+    <!-- أداة Eruda لإظهار زر Console عائم على شاشة الهاتف لفحص الأخطاء -->
+    <script src="https://cdn.jsdelivr.net/npm/eruda"></script>
+    <script>eruda.init();</script>
   </head>
   <body class="bg-[#0c0d12] text-slate-100 selection:bg-amber-500 selection:text-black overflow-x-hidden antialiased font-sans">
     <div id="root"></div>
+
+    <!-- كود تلقائي لإلغاء تسجيل الـ Service Worker القديم وتنظيف ذاكرة الهاتف -->
     <script>
       if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('./sw.js').catch(() => {});
+        navigator.serviceWorker.getRegistrations().then(function(registrations) {
+          for (let registration of registrations) {
+            registration.unregister();
+          }
         });
       }
     </script>
-    <script type="module" src="/src/main.tsx"></script>
+
+    <!-- تعديل المسار المباشر إلى مسار نسبي صحيح لـ GitHub Pages -->
+    <script type="module" src="./src/main.tsx"></script>
   </body>
 </html>
