@@ -29,7 +29,9 @@ import {
   Thermometer,
   Gauge,
   Sparkles,
-  BrainCircuit
+  BrainCircuit,
+  Hourglass,
+  Timer
 } from 'lucide-react';
 import { ShareParticlesCanvas } from './ShareParticlesCanvas';
 
@@ -121,6 +123,19 @@ export const NerdMinerScreen: React.FC<NerdMinerScreenProps> = ({
   // Thermal badge coloring
   const tempColor = stats.temperatureC > 70 ? 'text-rose-400' : stats.temperatureC > 55 ? 'text-[#f59e0b]' : 'text-[#10b981]';
   const pingColor = stats.pingMs < 50 ? 'text-[#10b981]' : stats.pingMs < 150 ? 'text-[#f59e0b]' : 'text-rose-400';
+
+  // Real-time Block Lifecycle Countdown (10m Target)
+  const TARGET_BLOCK_SEC = 600;
+  const lastBlockTimestamp = network.lastBlockTime || (Date.now() - 240000);
+  const elapsedBlockSec = Math.max(0, Math.floor((Date.now() - lastBlockTimestamp) / 1000));
+  const remainingBlockSec = Math.max(0, TARGET_BLOCK_SEC - elapsedBlockSec);
+  const isBlockOvertime = elapsedBlockSec > TARGET_BLOCK_SEC;
+  const overtimeBlockSec = isBlockOvertime ? elapsedBlockSec - TARGET_BLOCK_SEC : 0;
+  const blockCountdownStr = isBlockOvertime
+    ? `+${Math.floor(overtimeBlockSec / 60).toString().padStart(2, '0')}:${(overtimeBlockSec % 60).toString().padStart(2, '0')}`
+    : `${Math.floor(remainingBlockSec / 60).toString().padStart(2, '0')}:${(remainingBlockSec % 60).toString().padStart(2, '0')}`;
+  const blockElapsedStr = `${Math.floor(elapsedBlockSec / 60).toString().padStart(2, '0')}:${(elapsedBlockSec % 60).toString().padStart(2, '0')}`;
+  const blockProgressPct = Math.min(100, Math.round((elapsedBlockSec / TARGET_BLOCK_SEC) * 100));
 
   const modeName = t.screenModes[mode] || mode;
 
@@ -321,8 +336,16 @@ export const NerdMinerScreen: React.FC<NerdMinerScreenProps> = ({
               </div>
 
               <div className="hidden sm:flex items-center gap-3 text-slate-300 text-[10px] uppercase tracking-wider font-mono" dir="ltr">
-                <div>{lang === 'ar' ? 'الكتلة' : 'HEIGHT'}: <span className="text-amber-400 font-bold">#{network.blockHeight.toLocaleString()}</span></div>
-                <div>{lang === 'ar' ? 'الصعوبة' : 'DIFF'}: <span className="text-slate-300 font-bold">{network.networkDifficulty.toFixed(1)} T</span></div>
+                <div className="flex items-center gap-1">
+                  <span className="text-slate-400 font-tajawal">{lang === 'ar' ? 'الكتلة' : 'HEIGHT'}:</span>
+                  <span className="text-amber-400 font-bold">#{network.blockHeight.toLocaleString()}</span>
+                </div>
+                <div className="flex items-center gap-1 bg-[#141824] px-2 py-0.5 rounded border border-white/10" title={lang === 'ar' ? 'العد التنازلي المتوقع للكتلة التالية' : 'Estimated Block Countdown'}>
+                  <Hourglass className={`w-2.5 h-2.5 ${isBlockOvertime ? 'text-rose-400 animate-spin' : 'text-amber-400'}`} />
+                  <span className={`font-bold ${isBlockOvertime ? 'text-rose-400 animate-pulse' : 'text-amber-400'}`}>
+                    {blockCountdownStr}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
@@ -331,29 +354,82 @@ export const NerdMinerScreen: React.FC<NerdMinerScreenProps> = ({
         {/* SCREEN MODE 2: CLOCK & MEMPOOL HALVING MATRIX */}
         {mode === 'clock' && (
           <div className="space-y-2.5">
+            {/* Real-time Block Lifecycle & Countdown Banner */}
+            <div className="bg-gradient-to-r from-[#0d1017] via-[#141824] to-[#0d1017] border border-white/10 rounded-xl p-3 shadow-md">
+              <div className="flex items-center justify-between text-[11px] font-tajawal pb-2 border-b border-white/10">
+                <div className="flex items-center gap-1.5 text-white font-bold">
+                  <Hourglass className={`w-3.5 h-3.5 ${isBlockOvertime ? 'text-rose-400 animate-spin' : 'text-amber-400'}`} />
+                  <span>{t.blockCountdownTitle}</span>
+                  <span className="text-[10px] text-amber-400 font-mono bg-amber-500/10 px-1.5 py-0.2 rounded border border-amber-500/30" dir="ltr">
+                    #{network.blockHeight + 1}
+                  </span>
+                </div>
+                <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                  isBlockOvertime ? 'text-rose-400 bg-rose-500/15 border-rose-500/40 animate-pulse' :
+                  elapsedBlockSec > 480 ? 'text-amber-300 bg-amber-500/15 border-amber-500/40' :
+                  'text-emerald-400 bg-emerald-500/15 border-emerald-500/40'
+                }`}>
+                  {isBlockOvertime ? t.blockPhaseOvertime : elapsedBlockSec > 480 ? t.blockPhaseImminent : t.blockPhaseEarly}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 mt-2" dir="ltr">
+                <div className="bg-[#0b0e16] p-2 rounded-lg border border-white/5 flex items-center justify-between">
+                  <div>
+                    <div className="text-[9px] text-slate-400 font-tajawal">{t.blockStartedAt}</div>
+                    <div className="text-xs font-bold text-white font-mono">{blockElapsedStr} {t.timeAgo}</div>
+                  </div>
+                  <Clock className="w-3.5 h-3.5 text-cyan-400" />
+                </div>
+                <div className={`p-2 rounded-lg border flex items-center justify-between ${
+                  isBlockOvertime ? 'bg-rose-950/30 border-rose-500/40' : 'bg-[#0b0e16] border-white/5'
+                }`}>
+                  <div>
+                    <div className="text-[9px] text-slate-400 font-tajawal">{t.expectedNextBlock}</div>
+                    <div className={`text-sm font-black font-mono ${isBlockOvertime ? 'text-rose-400' : 'text-amber-400'}`}>
+                      {blockCountdownStr}
+                    </div>
+                  </div>
+                  <Timer className={`w-3.5 h-3.5 ${isBlockOvertime ? 'text-rose-400' : 'text-amber-400'}`} />
+                </div>
+              </div>
+
+              {/* Progress bar */}
+              <div className="w-full bg-[#161a26] h-1.5 rounded-full mt-2 overflow-hidden border border-white/5">
+                <div 
+                  className={`h-full rounded-full transition-all duration-1000 ${
+                    isBlockOvertime 
+                      ? 'bg-gradient-to-r from-amber-500 to-rose-500' 
+                      : 'bg-gradient-to-r from-emerald-500 via-cyan-400 to-amber-400'
+                  }`}
+                  style={{ width: `${blockProgressPct}%` }}
+                />
+              </div>
+            </div>
+
             <div className="grid grid-cols-2 gap-2.5">
-              <div className="bg-[#0e111a] border border-white/10 rounded-xl p-3.5 shadow-sm">
+              <div className="bg-[#0e111a] border border-white/10 rounded-xl p-3 shadow-sm">
                 <div className="text-[10px] text-slate-400 font-tajawal flex items-center gap-1">
                   <Layers className="w-3.5 h-3.5 text-cyan-400" />
                   <span>{t.blockHeight}</span>
                 </div>
-                <div className="text-2xl sm:text-3xl font-black text-white mt-1 font-mono tracking-tight" dir="ltr">
+                <div className="text-xl sm:text-2xl font-black text-white mt-1 font-mono tracking-tight" dir="ltr">
                   #{network.blockHeight.toLocaleString()}
                 </div>
-                <div className="text-[10px] text-slate-400 mt-1 font-tajawal">
+                <div className="text-[10px] text-slate-400 mt-0.5 font-tajawal">
                   {t.mempoolTxs}: <span className="text-slate-200 font-mono font-bold" dir="ltr">{network.unconfirmedTxs.toLocaleString()}</span>
                 </div>
               </div>
 
-              <div className="bg-[#0e111a] border border-white/10 rounded-xl p-3.5 shadow-sm">
+              <div className="bg-[#0e111a] border border-white/10 rounded-xl p-3 shadow-sm">
                 <div className="text-[10px] text-slate-400 font-tajawal flex items-center gap-1">
                   <Activity className="w-3.5 h-3.5 text-amber-400" />
                   <span>{t.halvingProgress}</span>
                 </div>
-                <div className="text-2xl sm:text-3xl font-black text-amber-400 mt-1 font-mono tracking-tight" dir="ltr">
+                <div className="text-xl sm:text-2xl font-black text-amber-400 mt-1 font-mono tracking-tight" dir="ltr">
                   {network.halvingProgress.toFixed(1)}%
                 </div>
-                <div className="w-full bg-[#161a26] h-2 rounded-full mt-2 overflow-hidden border border-white/5">
+                <div className="w-full bg-[#161a26] h-1.5 rounded-full mt-1.5 overflow-hidden border border-white/5">
                   <div 
                     className="bg-gradient-to-r from-amber-500 to-amber-400 shadow-[0_0_15px_#f59e0b] h-full rounded-full transition-all"
                     style={{ width: `${network.halvingProgress}%` }}

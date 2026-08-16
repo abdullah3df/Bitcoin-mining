@@ -44,6 +44,15 @@ export interface WorkerMessageFromWorker {
   dutyCycleMs?: number;
 }
 
+export interface CoreTelemetry {
+  id: number;
+  active: boolean;
+  load: number;        // 0 - 100%
+  temperatureC: number; // e.g. 42°C
+  hashRate: number;    // per-core H/s
+  sharesFound: number;
+}
+
 export interface MinerStats {
   isMining: boolean;
   hashRate: number; // in H/s
@@ -69,6 +78,18 @@ export interface MinerStats {
   engineType: 'WASM' | 'UNROLLED_JS';
   smartAutoTune: boolean;
   efficiencyScore: number;
+  cores?: CoreTelemetry[];
+}
+
+export interface RecentBlock {
+  height: number;
+  id: string;
+  timestamp: number;
+  txCount: number;
+  size: number;
+  minerName?: string;
+  durationSeconds?: number;
+  rewardBtc?: number;
 }
 
 export interface NetworkData {
@@ -85,6 +106,7 @@ export interface NetworkData {
   unconfirmedTxs: number;
   lastBlockTime: number;
   networkHashrateEH: number; // in EH/s
+  recentBlocks?: RecentBlock[];
 }
 
 export interface PoolConfig {

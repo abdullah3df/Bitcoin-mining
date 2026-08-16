@@ -21,6 +21,8 @@ import { SettingsModal } from './components/SettingsModal';
 import { BlockWinModal } from './components/BlockWinModal';
 import { StratumLogsDrawer } from './components/StratumLogsDrawer';
 import { MiningDashboard } from './components/MiningDashboard';
+import { BlockCountdownTimer } from './components/BlockCountdownTimer';
+import { RecentBlocksFeed } from './components/RecentBlocksFeed';
 import { WinOddsCalculator } from './components/WinOddsCalculator';
 import { MiniMinerWidget } from './components/MiniMinerWidget';
 import { MobileFloatingWidget } from './components/MobileFloatingWidget';
@@ -371,6 +373,31 @@ export default function App() {
         const newTemp = Math.round(prev.temperatureC * 0.85 + targetTemp * 0.15);
         const newHistory = [...prev.hashRateHistory.slice(1), currentRate];
 
+        // Generate per-core telemetry with dynamic load & temperature jitter
+        const coresTelemetry = Array.from({ length: maxCores }, (_, i) => {
+          const isActive = i < prev.activeThreads && isMiningRef.current;
+          // Variance across silicon dies and thermal gradients
+          const dieVariance = ((i % 3) - 1) * 2;
+          const coreLoad = isActive 
+            ? Math.min(100, Math.max(10, load + Math.floor(Math.sin(Date.now() / 1000 + i) * 8)))
+            : 0;
+          const coreTemp = isActive 
+            ? Math.max(34, Math.round(newTemp + dieVariance + (coreLoad > 90 ? 3 : -2)))
+            : 32;
+          const coreHash = isActive 
+            ? Math.max(0, Math.round((currentRate / Math.max(1, prev.activeThreads)) * (1 + ((i % 2 === 0 ? 0.05 : -0.05)))))
+            : 0;
+
+          return {
+            id: i + 1,
+            active: isActive,
+            load: coreLoad,
+            temperatureC: coreTemp,
+            hashRate: coreHash,
+            sharesFound: 0
+          };
+        });
+
         return {
           ...prev,
           hashRate: currentRate,
@@ -383,7 +410,8 @@ export default function App() {
           cpuLoadPercent: load,
           temperatureC: newTemp,
           cleanJobsCount: workerManagerRef.current?.getCleanJobsCount() || prev.cleanJobsCount,
-          staleJobsPrevented: workerManagerRef.current?.getStaleJobsPrevented() || prev.staleJobsPrevented
+          staleJobsPrevented: workerManagerRef.current?.getStaleJobsPrevented() || prev.staleJobsPrevented,
+          cores: coresTelemetry
         };
       });
     }, 1000);
@@ -658,7 +686,7 @@ export default function App() {
         </div>
 
         {/* Row 2: Live Network & Telemetry Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 font-mono">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 font-mono">
           {/* BTC Price Card */}
           <div className="p-2.5 rounded-xl bg-[#121520]/90 border border-white/10 shadow-sm flex flex-col justify-between" dir="ltr">
             <div className="flex items-center justify-between text-[10px] text-slate-400 font-tajawal">
@@ -686,11 +714,14 @@ export default function App() {
             </div>
           </div>
 
+          {/* Block Countdown Micro Header Card */}
+          <BlockCountdownTimer network={network} lang={lang} variant="header" />
+
           {/* Mining Pool Status Card */}
-          <div className="col-span-2 sm:col-span-1 p-2.5 rounded-xl bg-[#121520]/90 border border-white/10 shadow-sm flex flex-col justify-between" dir="ltr">
+          <div className="p-2.5 rounded-xl bg-[#121520]/90 border border-white/10 shadow-sm flex flex-col justify-between" dir="ltr">
             <div className="flex items-center justify-between text-[10px] text-slate-400 font-tajawal">
               <span className="text-slate-300">{lang === 'ar' ? 'حوض التعدين' : 'Stratum Pool'}</span>
-              <span className={`font-bold font-mono ${stats.pingMs < 100 ? 'text-emerald-400' : 'text-amber-400'}`}>{stats.pingMs}ms</span>
+              <span className={`font-bold font-mono ${stats.pingMs < 100 ? 'text-emerald-400' : 'text-amber-400'}`}>{stats.pingMs === 0 ? '--' : stats.pingMs}ms</span>
             </div>
             <div className="text-xs font-bold text-slate-200 tracking-tight truncate mt-1 flex items-center gap-1.5 font-mono">
               <span className={`w-2 h-2 rounded-full shrink-0 ${poolConnected ? 'bg-emerald-400 shadow-[0_0_6px_#10b981]' : 'bg-amber-400 animate-pulse'}`} />
@@ -740,6 +771,16 @@ export default function App() {
           isOpen={showLogs}
           lang={lang}
         />
+
+        {/* Live Block Countdown & Epoch Progression Card */}
+        <div className="w-full max-w-[720px] mx-auto mt-4 space-y-4">
+          <BlockCountdownTimer network={network} lang={lang} variant="full" />
+          <RecentBlocksFeed 
+            blocks={network.recentBlocks} 
+            currentBlockHeight={network.blockHeight} 
+            lang={lang} 
+          />
+        </div>
 
         {/* Mining Controls Dashboard */}
         <MiningDashboard

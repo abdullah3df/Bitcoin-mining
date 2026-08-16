@@ -99,6 +99,50 @@ export interface Translations {
   screenKeepAwake: string;
   pwaInstallTitle: string;
   pwaInstallHelp: string;
+  blockCountdownTitle: string;
+  blockStartedAt: string;
+  expectedNextBlock: string;
+  targetBlockTime: string;
+  blockEpochProgress: string;
+  currentMiningBlock: string;
+  blockPhaseEarly: string;
+  blockPhaseMid: string;
+  blockPhaseImminent: string;
+  blockPhaseOvertime: string;
+  timeAgo: string;
+  remaining: string;
+  overtime: string;
+  coreHeatmapTitle: string;
+  coreHeatmapSubtitle: string;
+  coreLabel: string;
+  coreActive: string;
+  coreIdle: string;
+  coreLoad: string;
+  coreHeatmapTemp: string;
+  coreHashrate: string;
+  coreShares: string;
+  coreHeatCool: string;
+  coreHeatOptimal: string;
+  coreHeatWarm: string;
+  coreHeatHot: string;
+  toggleCoreHeatmap: string;
+  showCoreHeatmap: string;
+  hideCoreHeatmap: string;
+  toggleRecentBlocks: string;
+  showRecentBlocks: string;
+  hideRecentBlocks: string;
+  recentBlocksTitle: string;
+  recentBlocksSubtitle: string;
+  blockDuration: string;
+  blockMiner: string;
+  blockTxsCount: string;
+  blockSizeMB: string;
+  fastBlockBadge: string;
+  slowBlockBadge: string;
+  normalBlockBadge: string;
+  viewMempool: string;
+  minShort: string;
+  secShort: string;
   screenModes: {
     nerdminer: string;
     clock: string;
@@ -207,6 +251,50 @@ export const TRANSLATIONS: Record<Language, Translations> = {
     screenKeepAwake: 'إبقاء الشاشة مضاءة للتعدين',
     pwaInstallTitle: 'تثبيت كأيقونة تطبيق على هاتفك',
     pwaInstallHelp: 'اضغط على خيارات المتصفح واختر "إضافة إلى الشاشة الرئيسية"',
+    blockCountdownTitle: 'عداد دورة الكتلة التنازلي (10 دقائق)',
+    blockStartedAt: 'بدأت الكتلة منذ',
+    expectedNextBlock: 'العد التنازلي المتوقع للكتلة التالية',
+    targetBlockTime: 'المعدل المستهدف للكتلة (10 دقائق)',
+    blockEpochProgress: 'اكتمال زمن الكتلة',
+    currentMiningBlock: 'الكتلة الحالية قيد التعدين',
+    blockPhaseEarly: 'مرحلة البحث الأولى',
+    blockPhaseMid: 'مرحلة تكثيف التجزئة',
+    blockPhaseImminent: 'الكتلة وشيكة الظهور',
+    blockPhaseOvertime: 'تجاوزت المعدل المتوقع (احتمال حل فوري)',
+    timeAgo: 'منذ',
+    remaining: 'متبقي',
+    overtime: 'تأخر',
+    coreHeatmapTitle: 'خريطة حرارة الأنوية الحية',
+    coreHeatmapSubtitle: 'مراقبة توزيع حمل المعالجة، درجات الحرارة، ومعدل التجزئة لكل نواة مستقلة',
+    coreLabel: 'نواة',
+    coreActive: 'نشطة',
+    coreIdle: 'خاملة',
+    coreLoad: 'الحمل',
+    coreHeatmapTemp: 'الحرارة',
+    coreHashrate: 'السرعة',
+    coreShares: 'الأسهم',
+    coreHeatCool: 'باردة',
+    coreHeatOptimal: 'مثالية',
+    coreHeatWarm: 'دافئة',
+    coreHeatHot: 'مرتفعة',
+    toggleCoreHeatmap: 'خريطة حرارة الأنوية',
+    showCoreHeatmap: 'عرض خريطة الأنوية',
+    hideCoreHeatmap: 'إخفاء خريطة الأنوية',
+    toggleRecentBlocks: 'سجل الكتل',
+    showRecentBlocks: 'عرض سجل الكتل المكتشفة',
+    hideRecentBlocks: 'إخفاء سجل الكتل',
+    recentBlocksTitle: 'سجل أحدث الكتل المكتشفة عالمياً',
+    recentBlocksSubtitle: 'سجل حي لزمن حل الكتل ومجمعات التعدين الفائزة على شبكة البيتكوين',
+    blockDuration: 'استغرقت',
+    blockMiner: 'المجمع',
+    blockTxsCount: 'معاملة',
+    blockSizeMB: 'ميجابايت',
+    fastBlockBadge: 'سريعة ⚡',
+    slowBlockBadge: 'طويلة ⏳',
+    normalBlockBadge: 'قياسية',
+    viewMempool: 'عرض',
+    minShort: 'د',
+    secShort: 'ث',
     screenModes: {
       nerdminer: 'شاشة نيرد ماينر',
       clock: 'ساعة وشبكة الميمبول',
@@ -313,6 +401,50 @@ export const TRANSLATIONS: Record<Language, Translations> = {
     screenKeepAwake: 'Keep Mobile Screen Awake',
     pwaInstallTitle: 'Install as Home Screen App Icon',
     pwaInstallHelp: 'Tap browser options and select "Add to Home screen"',
+    blockCountdownTitle: 'Bitcoin Block Lifecycle Countdown (10m Avg)',
+    blockStartedAt: 'Current Block Started',
+    expectedNextBlock: 'Estimated Countdown to Next Block',
+    targetBlockTime: 'Target Interval (10m 00s)',
+    blockEpochProgress: 'Epoch Elapsed Progress',
+    currentMiningBlock: 'Active Block Mining',
+    blockPhaseEarly: 'Early Search Phase',
+    blockPhaseMid: 'Hash Acceleration Phase',
+    blockPhaseImminent: 'Block Imminent',
+    blockPhaseOvertime: 'Overtime (Elevated Discovery Odds)',
+    timeAgo: 'ago',
+    remaining: 'remaining',
+    overtime: 'overtime',
+    coreHeatmapTitle: 'Multi-Core Thermal & Load Heatmap',
+    coreHeatmapSubtitle: 'Real-time independent monitoring of thread load, temperature variance, and hash distribution',
+    coreLabel: 'Core',
+    coreActive: 'Active',
+    coreIdle: 'Idle',
+    coreLoad: 'Load',
+    coreHeatmapTemp: 'Temp',
+    coreHashrate: 'Rate',
+    coreShares: 'Shares',
+    coreHeatCool: 'Cool',
+    coreHeatOptimal: 'Optimal',
+    coreHeatWarm: 'Warm',
+    coreHeatHot: 'High',
+    toggleCoreHeatmap: 'Core Heatmap',
+    showCoreHeatmap: 'Show Core Heatmap',
+    hideCoreHeatmap: 'Hide Core Heatmap',
+    toggleRecentBlocks: 'Recent Blocks',
+    showRecentBlocks: 'Show Recent Blocks Feed',
+    hideRecentBlocks: 'Hide Recent Blocks Feed',
+    recentBlocksTitle: 'Recent Globally Mined Blocks',
+    recentBlocksSubtitle: 'Live feed of global Bitcoin block solve times and miner pools',
+    blockDuration: 'Duration',
+    blockMiner: 'Pool',
+    blockTxsCount: 'txs',
+    blockSizeMB: 'MB',
+    fastBlockBadge: 'Fast ⚡',
+    slowBlockBadge: 'Long ⏳',
+    normalBlockBadge: 'Standard',
+    viewMempool: 'View',
+    minShort: 'm',
+    secShort: 's',
     screenModes: {
       nerdminer: 'NerdMiner TFT Screen',
       clock: 'Clock & Mempool Matrix',

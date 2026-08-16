@@ -2,6 +2,7 @@ import React from 'react';
 import { MinerStats, NetworkData, PoolConfig, IntensityMode, Language } from '../types';
 import { TRANSLATIONS } from '../i18n/translations';
 import { formatDifficulty, formatHashRate } from '../services/bitcoinCrypto';
+import { CoreHeatmap } from './CoreHeatmap';
 import { 
   Zap, 
   Cpu, 
@@ -52,6 +53,26 @@ export const MiningDashboard: React.FC<MiningDashboardProps> = ({
 
   const tempColor = stats.temperatureC > 70 ? 'text-rose-400' : stats.temperatureC > 55 ? 'text-amber-400' : 'text-emerald-400';
   const pingColor = stats.pingMs < 50 ? 'text-emerald-400' : stats.pingMs < 150 ? 'text-amber-400' : 'text-rose-400';
+
+  // Build or extract cores telemetry array
+  const coresList = stats.cores || Array.from({ length: maxThreads }, (_, i) => {
+    const isActive = i < stats.activeThreads && stats.isMining;
+    const baseTemp = stats.temperatureC;
+    // Natural variance across silicon dies (+/- 3C)
+    const coreTempOffset = ((i % 3) - 1) * 2;
+    const coreTemp = isActive ? Math.max(34, baseTemp + coreTempOffset) : 32;
+    const coreHash = isActive ? Math.round(stats.hashRate / Math.max(1, stats.activeThreads)) : 0;
+    const coreLoad = isActive ? stats.cpuLoadPercent : 0;
+
+    return {
+      id: i + 1,
+      active: isActive,
+      load: coreLoad,
+      temperatureC: coreTemp,
+      hashRate: coreHash,
+      sharesFound: 0
+    };
+  });
 
   return (
     <div className="w-full max-w-[720px] mx-auto mt-4 space-y-3.5 font-mono text-slate-300" dir={isRtl ? 'rtl' : 'ltr'}>
@@ -180,6 +201,19 @@ export const MiningDashboard: React.FC<MiningDashboardProps> = ({
             </div>
           </div>
         </div>
+
+        {/* Real-time Multi-Core Thermal & Load Heatmap */}
+        <CoreHeatmap
+          cores={coresList}
+          maxThreads={maxThreads}
+          activeThreads={stats.activeThreads}
+          overallTemp={stats.temperatureC}
+          lang={lang}
+          onToggleCore={(coreId) => {
+            // Clicking core sets active threads up to this core
+            onSetThreadCount(coreId);
+          }}
+        />
       </div>
 
       {/* Solo Lottery Summary Cards & Zero-Latency Metrics */}
@@ -242,3 +276,4 @@ export const MiningDashboard: React.FC<MiningDashboardProps> = ({
     </div>
   );
 };
+
